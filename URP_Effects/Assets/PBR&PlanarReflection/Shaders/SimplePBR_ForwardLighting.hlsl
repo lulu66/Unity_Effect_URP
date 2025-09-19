@@ -87,7 +87,7 @@ half4 frag(v2f i) : SV_Target
 
     //half3 indirectSpecular = Indirect_Reflection(refDir, 1.0 - smoothness, occlusion);
     float2 screenUV = i.screenPos.xy / i.screenPos.w;
-    half3 indirectSpecular = Indirect_PlanarReflection(screenUV, 1 - smoothness, occlusion);
+	half3 indirectSpecular = Indirect_PlanarReflection(screenUV, 1 - smoothness, occlusion);
     half3 color = Lighting_BRDF(worldNormal, lightDirWS, lightColor, worldViewDir, specularColor, diffuseColor, indirectDiffuse,
         indirectSpecular, smoothness, oneMinusReflectivity);
 
