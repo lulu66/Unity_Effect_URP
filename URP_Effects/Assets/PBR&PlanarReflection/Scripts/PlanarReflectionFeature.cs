@@ -23,14 +23,14 @@ public class PlanarReflectionFeature : ScriptableRendererFeature
 
 	public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
 	{
-		planarReflectionPass.SetUp(renderer.cameraColorTarget);
+		planarReflectionPass.SetUp();
 		renderer.EnqueuePass(planarReflectionPass);
 	}
 
 	public override void Create()
 	{
 		planarReflectionPass = new PlanarReflectionPass();
-		planarReflectionPass.renderPassEvent = Settings.renderPassEvent;
+		//planarReflectionPass.renderPassEvent = Settings.renderPassEvent;
 		planarReflectionPass.layerMask = Settings.reflectionLayerMask;
 		planarReflectionPass.clipPlanarOffset = 0;//Settings.clipPlaneOffset;
 		planarReflectionPass.planeOffset = 0;//Settings.planeOffset;

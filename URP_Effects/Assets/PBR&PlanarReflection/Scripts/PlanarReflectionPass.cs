@@ -22,7 +22,7 @@ public class PlanarReflectionPass : ScriptableRenderPass
 	private FilteringSettings filterSettings;
 
 	private Transform targetPlane;
-	public void SetUp(RenderTargetIdentifier colorAttachment)
+	public void SetUp()
 	{
 		if(targetPlane == null)
 		{
@@ -39,7 +39,6 @@ public class PlanarReflectionPass : ScriptableRenderPass
 		shaderTagIdList.Add(new ShaderTagId("UniversalForwardOnly"));
 
 		filterSettings = new FilteringSettings(RenderQueueRange.all, layerMask);
-		source = colorAttachment;
 	}
 
 	public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
@@ -48,6 +47,7 @@ public class PlanarReflectionPass : ScriptableRenderPass
 		var sortingCriteria = renderingData.cameraData.defaultOpaqueSortFlags;
 		var drawingSettings = CreateDrawingSettings(shaderTagIdList, ref renderingData, sortingCriteria);
 
+		source = renderingData.cameraData.renderer.cameraColorTarget;
 		var cmd = CommandBufferPool.Get("Planar Reflection");
 		ref var cameraData = ref renderingData.cameraData;
 		var camera = cameraData.camera;

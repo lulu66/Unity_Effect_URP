@@ -5,7 +5,13 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: d1c3109bdb54ad54c8a2b2838528e640
+  - enabled: 0
+    path: Assets/FXAA/fxaa.unity
+    guid: c1b12bd39eeb1c640893830ba42c7ad3
+  - enabled: 1
+    path: Assets/FXAA/fxaa.unity
+    guid: be81335c408b0944496994938a915374
   m_configObjects: {}

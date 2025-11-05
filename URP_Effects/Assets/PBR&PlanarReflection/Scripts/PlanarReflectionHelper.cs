@@ -7,11 +7,11 @@ public static class PlanarReflectionHelper
 
     public static Vector4 GetPlaneExpression(Transform plane)
     {
-        var normal = plane.up;
-        var d = -Vector3.Dot(normal, plane.position);
-        var pplane = new Vector4(normal.x, normal.y, normal.z, d);
-        return pplane;
-    }
+		var normal = plane.up;
+		var d = -Vector3.Dot(normal, plane.position);
+		var pplane = new Vector4(normal.x, normal.y, normal.z, d);
+		return pplane;
+	}
 
     public static Matrix4x4 CalculateReflectionMatrix(Vector4 plane)
     {
@@ -97,9 +97,11 @@ public static class PlanarReflectionHelper
     public static Vector3 GetReflectionCameraPos(Transform transform, Transform cameraTransform)
     {
         // 将相机移转换到平面空间 plane space，再通过平面对称创建反射相机
-        Vector3 camPosPS = transform.worldToLocalMatrix.MultiplyPoint(cameraTransform.position);
+        //Vector3 camPosPS = transform.worldToLocalMatrix.MultiplyPoint(cameraTransform.position);
+        Vector3 camPosPS = transform.InverseTransformPoint(cameraTransform.position);
         Vector3 reflectCamPosPS = Vector3.Scale(camPosPS, new Vector3(1, -1, 1));  // 反射相机平面空间
-        Vector3 reflectCamPosWS = transform.localToWorldMatrix.MultiplyPoint(reflectCamPosPS);  // 将反射相机转换到世界空间
+        //Vector3 reflectCamPosWS = transform.localToWorldMatrix.MultiplyPoint(reflectCamPosPS);  // 将反射相机转换到世界空间
+        Vector3 reflectCamPosWS = transform.TransformPoint(reflectCamPosPS);  // 将反射相机转换到世界空间
 
         return reflectCamPosWS;
     }
