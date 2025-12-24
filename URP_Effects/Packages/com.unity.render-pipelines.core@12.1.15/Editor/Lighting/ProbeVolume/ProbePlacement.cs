@@ -17,6 +17,7 @@ namespace UnityEngine.Experimental.Rendering
     class ProbePlacement
     {
         const int k_MaxDistanceFieldTextureSize = 128;
+        // 每个子cell的最大细分层级
         const int k_MaxSubdivisionInSubCell = 4;
         // The UAV binding index 4 isn't in use when we bake the probes and doesn't crash unity.
         const int k_RandomWriteBindingIndex = 4;
@@ -35,34 +36,43 @@ namespace UnityEngine.Experimental.Rendering
             public float geometryDistanceOffset;
         }
 
+        // GPU使用的数据传输结构
         public class GPUSubdivisionContext : IDisposable
         {
             public int maxSubdivisionLevel;
-            public int maxBrickCountPerAxis;
+            public int maxBrickCountPerAxis;            // 每个cell轴上最大的brick数量
             public int maxSubdivisionLevelInSubCell;
-            public int maxBrickCountPerAxisInSubCell;
+            public int maxBrickCountPerAxisInSubCell;   // 每个子cell轴上最大的brick数量
 
+            // 场景的3D sdf图
             public RenderTexture sceneSDF;
+            // 场景的3D sdf图，带mipmap
             public RenderTexture sceneSDF2;
             public RenderTexture dummyRenderTarget;
 
+            // 场景的probe volume的buffer
             public ComputeBuffer probeVolumesBuffer;
+            // 场景的bricks的buffer
             public ComputeBuffer[] bricksBuffers;
+            // 读取数量的一个buffer
             public ComputeBuffer[] readbackCountBuffers;
-
+            // 场景的bricks的位置的数组
             public Vector3[] brickPositions;
 
             public GPUSubdivisionContext(int probeVolumeCount, int maxSubdivisionLevelFromAsset)
             {
                 // Find the maximum subdivision level we can have in this cell (avoid extra work if not needed)
+                // probo volume每个轴最大的brick数
                 this.maxSubdivisionLevel = maxSubdivisionLevelFromAsset - 1; // remove 1 because the last subdiv level is the cell size
                 maxBrickCountPerAxis = (int)Mathf.Pow(3, maxSubdivisionLevel); // cells are always cube
 
                 // jump flooding algorithm works best with POT textures
                 int sceneSDFSize = Mathf.NextPowerOfTwo(maxBrickCountPerAxis);
                 // Limit the max resolution of the texture to avoid out of memory, for bigger cells, we split them into sub-cells for distance field computation.
+                // 场景的sdf图大小尺寸在64~128之间
                 sceneSDFSize = Mathf.Clamp(sceneSDFSize, 64, k_MaxDistanceFieldTextureSize);
 
+                // 场景的3D sdf图描述结构体
                 RenderTextureDescriptor distanceFieldTextureDescriptor = new RenderTextureDescriptor
                 {
                     height = sceneSDFSize,
@@ -73,7 +83,7 @@ namespace UnityEngine.Experimental.Rendering
                     graphicsFormat = Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat, // we need 16 bit precision for the distance field
                     msaaSamples = 1,
                 };
-
+                // 创建场景的sdf图
                 sceneSDF = RenderTexture.GetTemporary(distanceFieldTextureDescriptor);
                 sceneSDF.name = "Scene SDF";
                 sceneSDF.Create();
@@ -87,6 +97,7 @@ namespace UnityEngine.Experimental.Rendering
                 // Dummy render texture to bind during the voxelization of meshes
                 dummyRenderTarget = RenderTexture.GetTemporary(sceneSDFSize, sceneSDFSize, 0, GraphicsFormat.R8_SNorm);
 
+                // 存放probe volume的buffer数组
                 int stride = System.Runtime.InteropServices.Marshal.SizeOf(typeof(GPUProbeVolumeOBB));
                 probeVolumesBuffer = new ComputeBuffer(probeVolumeCount, stride, ComputeBufferType.Structured);
 
@@ -181,6 +192,11 @@ namespace UnityEngine.Experimental.Rendering
             }
         }
 
+        /// <summary>
+        /// 根据bound，返回一个volume
+        /// </summary>
+        /// <param name="bounds"></param>
+        /// <returns></returns>
         static public ProbeReferenceVolume.Volume ToVolume(Bounds bounds)
         {
             ProbeReferenceVolume.Volume v = new ProbeReferenceVolume.Volume();
@@ -192,19 +208,29 @@ namespace UnityEngine.Experimental.Rendering
         }
 
         public static GPUSubdivisionContext AllocateGPUResources(int probeVolumeCount, int maxSubdivisionLevel) => new GPUSubdivisionContext(probeVolumeCount, maxSubdivisionLevel);
-
+        /// <summary>
+        /// 生成子cell的volume列表，并返回它们的父cell的位置
+        /// </summary>
+        /// <param name="ctx"></param>
+        /// <param name="volume">父cell volume</param>
+        /// <returns></returns>        
         static IEnumerable<(ProbeReferenceVolume.Volume volume, Vector3 parentPosition)> SubdivideVolumeIntoSubVolume(GPUSubdivisionContext ctx, ProbeReferenceVolume.Volume volume)
         {
+            // 返回volume的center和边长
             volume.CalculateCenterAndSize(out var center, out var size);
             float maxBrickInSubCell = Mathf.Pow(3, k_MaxSubdivisionInSubCell);
+            // 每个轴包含的子cell数量
             float subdivisionCount = ctx.maxBrickCountPerAxis / (float)ctx.maxBrickCountPerAxisInSubCell;
+            // 每个子volume的边长（brick的数量）
             var subVolumeSize = size / subdivisionCount;
 
+            // 遍历子cell
             for (int x = 0; x < (int)subdivisionCount; x++)
             {
                 for (int y = 0; y < (int)subdivisionCount; y++)
                     for (int z = 0; z < (int)subdivisionCount; z++)
                     {
+                        // 为每个子cell构建一个volume
                         var subVolume = new ProbeReferenceVolume.Volume()
                         {
                             corner = volume.corner + new Vector3(x * subVolumeSize.x, y * subVolumeSize.y, z * subVolumeSize.z),
@@ -221,23 +247,37 @@ namespace UnityEngine.Experimental.Rendering
             }
         }
 
+        /// <summary>
+        /// 细分cell，生成sdf，自适应地放置probe，返回生成的brick列表
+        /// </summary>
+        /// <param name="cellVolume">有效的cell</param>
+        /// <param name="subdivisionCtx"></param>
+        /// <param name="ctx"></param>
+        /// <param name="renderers">与有效cell相交的renderers及它的volume</param>
+        /// <param name="probeVolumes">与有效cell相交的probeVolume及它的volume</param>
+        /// <returns></returns>
         public static List<Brick> SubdivideCell(ProbeReferenceVolume.Volume cellVolume, ProbeSubdivisionContext subdivisionCtx, GPUSubdivisionContext ctx, List<(Renderer component, ProbeReferenceVolume.Volume volume)> renderers, List<(ProbeVolume component, ProbeReferenceVolume.Volume volume)> probeVolumes)
         {
             List<Brick> finalBricks = new List<Brick>();
             HashSet<Brick> brickSet = new HashSet<Brick>();
+            // cell的中心点
             cellVolume.CalculateCenterAndSize(out var center, out var _);
+            // cell的包围盒
             var cellAABB = cellVolume.CalculateAABB();
 
             Profiler.BeginSample($"Subdivide Cell {center}");
             {
                 // If the cell is too big so we split it into smaller cells and bake each one separately
+                // 如果当前cell每个轴上的最大brick数量超过了纹理大小的限制(128)
                 if (ctx.maxBrickCountPerAxis > k_MaxDistanceFieldTextureSize)
                 {
+                    // 将当前cell拆分为子cell(每个子cell容纳子cell的最大brick数),返回子cell的volume和父cell的位置
                     foreach (var subVolume in SubdivideVolumeIntoSubVolume(ctx, cellVolume))
                     {
                         // redo the renderers and probe volume culling to avoid unnecessary work
                         // Calculate overlaping probe volumes to avoid unnecessary work
                         var overlappingProbeVolumes = new List<(ProbeVolume component, ProbeReferenceVolume.Volume volume)>();
+                        // 将与子cell相交的父cell加入相交列表
                         foreach (var probeVolume in probeVolumes)
                         {
                             if (ProbeVolumePositioning.OBBIntersect(probeVolume.volume, subVolume.volume))
@@ -246,6 +286,7 @@ namespace UnityEngine.Experimental.Rendering
 
                         // Calculate valid renderers to avoid unnecessary work (a renderer needs to overlap a probe volume and match the layer)
                         var overlappingRenderers = new List<(Renderer component, ProbeReferenceVolume.Volume volume)>();
+                        // 将与子cell和父cell均相交的renderer加入到相交列表
                         foreach (var renderer in renderers)
                         {
                             foreach (var probeVolume in overlappingProbeVolumes)
@@ -272,9 +313,11 @@ namespace UnityEngine.Experimental.Rendering
                             continue;
 
                         int brickCount = brickSet.Count;
+                        // 根据提供的probe volume，生成brick集合
                         SubdivideSubCell(subVolume.volume, subdivisionCtx, ctx, overlappingRenderers, overlappingProbeVolumes, overlappingTerrains, brickSet);
 
                         // In case there is at least one brick in the sub-cell, we need to spawn the parent brick.
+                        // 处理跨子Cell边界的大Brick生成的算法，用于确保跨越多个子Cell的大Brick被正确识别和添加
                         if (brickCount != brickSet.Count)
                         {
                             float minBrickSize = subdivisionCtx.profile.minBrickSize;
@@ -324,6 +367,7 @@ namespace UnityEngine.Experimental.Rendering
                 // TODO: this is really slow :/
                 Profiler.BeginSample($"Sort {finalBricks.Count} bricks");
                 // sort from larger to smaller bricks
+                // 对brick进行排序，细分级别从大到小；z坐标从小到大，Y坐标从小到大，X坐标从小到大
                 finalBricks.Sort((Brick lhs, Brick rhs) =>
                 {
                     if (lhs.subdivisionLevel != rhs.subdivisionLevel)
@@ -344,17 +388,32 @@ namespace UnityEngine.Experimental.Rendering
             return finalBricks;
         }
 
+        /// <summary>
+        /// Probe Volume八叉树细分的核心算法，实现了基于GPU的距离场（SDF）的自适应探针放置
+        /// 根据场景几何和Probe Volume设置，自适应地细分空间并生成Brick（探针块）
+        /// </summary>
+        /// <param name="cellVolume">子cell的volume</param>
+        /// <param name="subdivisionCtx"></param>
+        /// <param name="ctx"></param>
+        /// <param name="renderers">与子cell相交的renderer列表</param>
+        /// <param name="probeVolumes">与子cell相交的probe volume列表</param>
+        /// <param name="terrains"></param>
+        /// <param name="brickSet"></param>
         static void SubdivideSubCell(ProbeReferenceVolume.Volume cellVolume, ProbeSubdivisionContext subdivisionCtx,
             GPUSubdivisionContext ctx, List<(Renderer component, ProbeReferenceVolume.Volume volume)> renderers,
             List<(ProbeVolume component, ProbeReferenceVolume.Volume volume)> probeVolumes,
             List<(Terrain terrain, ProbeReferenceVolume.Volume volume)> terrains, HashSet<Brick> brickSet)
         {
+            // cell的包围盒
             var cellAABB = cellVolume.CalculateAABB();
+            // 每个brick最小边长
             float minBrickSize = subdivisionCtx.profile.minBrickSize;
 
+            // cell的中心点和边长
             cellVolume.CalculateCenterAndSize(out var center, out var _);
             var cmd = CommandBufferPool.Get($"Subdivide (Sub)Cell {center}");
 
+            // 如果有几何体，生成sdf
             if (RastersizeGeometry(cmd, cellVolume, ctx, renderers, terrains))
             {
                 // Only generate the distance field if there was an object rasterized
@@ -363,6 +422,7 @@ namespace UnityEngine.Experimental.Rendering
             else
             {
                 // When the is no geometry, instead of computing the distance field, we clear it with a big value.
+                // 没有几何体，用一个较大的值填充它
                 using (new ProfilingScope(cmd, new ProfilingSampler("Clear")))
                 {
                     cmd.SetComputeTextureParam(subdivideSceneCS, s_ClearKernel, _Output, ctx.sceneSDF);
@@ -373,18 +433,22 @@ namespace UnityEngine.Experimental.Rendering
             }
 
             // Now that the distance field is generated, we can store the probe subdivision data inside sceneSDF2
+            // 将probe volume 数据体素化，结果存储在sceneSDF2中
             var probeSubdivisionData = ctx.sceneSDF2;
             VoxelizeProbeVolumeData(cmd, cellAABB, probeVolumes, ctx);
 
             // Find the maximum subdivision level we can have in this cell (avoid extra work if not needed)
             int startSubdivisionLevel = Mathf.Max(0, ctx.maxSubdivisionLevelInSubCell - GetMaxSubdivision(ctx, probeVolumes.Max(p => p.component.GetMaxSubdivMultiplier())));
+            // 自适应细分逻辑...
             for (int subdivisionLevel = startSubdivisionLevel; subdivisionLevel <= ctx.maxSubdivisionLevelInSubCell; subdivisionLevel++)
             {
                 // Add the bricks from the probe volume min subdivision level:
+                // 计算当前级别下每个轴的brick数量
                 int brickCountPerAxis = (int)Mathf.Pow(3, ctx.maxSubdivisionLevelInSubCell - subdivisionLevel);
                 var bricksBuffer = ctx.bricksBuffers[subdivisionLevel];
                 var brickCountReadbackBuffer = ctx.readbackCountBuffers[subdivisionLevel];
 
+                // 清理GPU缓存
                 using (new ProfilingScope(cmd, new ProfilingSampler("Clear Bricks Buffer")))
                 {
                     cmd.SetComputeBufferParam(subdivideSceneCS, s_ClearBufferKernel, _BricksToClear, bricksBuffer);
@@ -393,8 +457,10 @@ namespace UnityEngine.Experimental.Rendering
                 }
 
                 // Generate the list of bricks on the GPU
+                // GPU计算，根据距离场细分生成brick列表
                 SubdivideFromDistanceField(cmd, cellAABB, ctx, probeSubdivisionData, bricksBuffer, brickCountPerAxis, subdivisionLevel, minBrickSize);
 
+                // 从GPU灰度结果到CPU
                 cmd.CopyCounterValue(bricksBuffer, brickCountReadbackBuffer, 0);
                 // Capture locally the subdivision level to use it inside the lambda
                 int localSubdivLevel = subdivisionLevel;

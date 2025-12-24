@@ -298,10 +298,14 @@ namespace UnityEngine.Experimental.Rendering
         [System.Serializable]
         internal class Cell
         {
+            // 索引
             public int index;
+            // 位置
             public Vector3Int position;
             public List<Brick> bricks;
+            // 包含的probe的位置
             public Vector3[] probePositions;
+            // cell中probe的个数（有多少个probe就有多少组球谐系数）
             public SphericalHarmonicsL2[] sh;
             public float[] validity;
             public int minSubdiv;
@@ -340,7 +344,9 @@ namespace UnityEngine.Experimental.Rendering
 
         internal struct Volume : IEquatable<Volume>
         {
+            // 左下角的角落点
             internal Vector3 corner;
+            // 三个轴方向，长度为volume的size
             internal Vector3 X;   // the vectors are NOT normalized, their length determines the size of the box
             internal Vector3 Y;
             internal Vector3 Z;
@@ -358,6 +364,15 @@ namespace UnityEngine.Experimental.Rendering
                 this.minSubdivisionMultiplier = minSubdivision;
             }
 
+            /// <summary>
+            /// volume赋值
+            /// </summary>
+            /// <param name="corner"></param>
+            /// <param name="X"></param>
+            /// <param name="Y"></param>
+            /// <param name="Z"></param>
+            /// <param name="maxSubdivision"></param>
+            /// <param name="minSubdivision"></param>
             public Volume(Vector3 corner, Vector3 X, Vector3 Y, Vector3 Z, float maxSubdivision = 1, float minSubdivision = 0)
             {
                 this.corner = corner;
@@ -368,6 +383,10 @@ namespace UnityEngine.Experimental.Rendering
                 this.minSubdivisionMultiplier = minSubdivision;
             }
 
+            /// <summary>
+            /// volume拷贝
+            /// </summary>
+            /// <param name="copy"></param>
             public Volume(Volume copy)
             {
                 X = copy.X;
@@ -378,6 +397,10 @@ namespace UnityEngine.Experimental.Rendering
                 minSubdivisionMultiplier = copy.minSubdivisionMultiplier;
             }
 
+            /// <summary>
+            /// volume的包围盒，返回中心点+边长
+            /// </summary>
+            /// <returns></returns>
             public Bounds CalculateAABB()
             {
                 Vector3 min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
@@ -405,12 +428,21 @@ namespace UnityEngine.Experimental.Rendering
                 return new Bounds((min + max) / 2, max - min);
             }
 
+            /// <summary>
+            /// 计算中心点和边长
+            /// </summary>
+            /// <param name="center"></param>
+            /// <param name="size"></param>
             public void CalculateCenterAndSize(out Vector3 center, out Vector3 size)
             {
                 size = new Vector3(X.magnitude, Y.magnitude, Z.magnitude);
                 center = corner + X * 0.5f + Y * 0.5f + Z * 0.5f;
             }
 
+            /// <summary>
+            /// 变换volume中心点和包围盒的三个轴方向
+            /// </summary>
+            /// <param name="trs"></param>
             public void Transform(Matrix4x4 trs)
             {
                 corner = trs.MultiplyPoint(corner);
@@ -445,15 +477,19 @@ namespace UnityEngine.Experimental.Rendering
 
         /// <summary>
         /// The resources that are bound to the runtime shaders for sampling Adaptive Probe Volume data.
+        /// 运行时供shader采样的probe volume的数据
+        /// Texture3D分别存储L0\L1\L2的球谐系数
         /// </summary>
         public struct RuntimeResources
         {
             /// <summary>
             /// Index data to fetch the correct location in the Texture3D.
+            /// 用于索引3D纹理中正确位置的索引
             /// </summary>
             public ComputeBuffer index;
             /// <summary>
             /// Indices of the various index buffers for each cell.
+            /// 被编码后的cell单元格信息数组
             /// </summary>
             public ComputeBuffer cellIndices;
             /// <summary>
@@ -513,20 +549,24 @@ namespace UnityEngine.Experimental.Rendering
         bool m_IsInitialized = false;
         int m_ID = 0;
         RefVolTransform m_Transform;
+        // probe volume的最大细分层级
         int m_MaxSubdivision;
         ProbeBrickPool m_Pool;
         ProbeBrickIndex m_Index;
         ProbeCellIndices m_CellIndices;
         List<Chunk> m_TmpSrcChunks = new List<Chunk>();
         float[] m_PositionOffsets = new float[ProbeBrickPool.kBrickProbeCountPerDim];
+        // 每一组局部的球谐数据组织为chunk列表，并给它一个id，组织和维护这些chunks
         Dictionary<RegId, List<Chunk>> m_Registry = new Dictionary<RegId, List<Chunk>>();
+        // probe volume的全局包围盒
         Bounds m_CurrGlobalBounds = new Bounds();
 
+        // cell的index : cell
         internal Dictionary<int, Cell> cells = new Dictionary<int, Cell>();
+        // cell.index : chunk info,cell中chunk数组
         Dictionary<int, CellChunkInfo> m_ChunkInfo = new Dictionary<int, CellChunkInfo>();
 
         internal ProbeVolumeSceneData sceneData;
-
 
         /// <summary>
         ///  The input to the retrieveExtraDataAction action.
@@ -542,17 +582,23 @@ namespace UnityEngine.Experimental.Rendering
 
 
         bool m_BricksLoaded = false;
+        // 每个cell对应的chunk组是哪个
         Dictionary<Cell, RegId> m_CellToBricks = new Dictionary<Cell, RegId>();
+        // 一组chunk有一个id，与一个cell中的编码索引信息对应
         Dictionary<RegId, ProbeBrickIndex.CellIndexUpdateInfo> m_BricksToCellUpdateInfo = new Dictionary<RegId, ProbeBrickIndex.CellIndexUpdateInfo>();
 
         // Information of the probe volume asset that is being loaded (if one is pending)
+        // 维护即将加载的ProbeVolumeAsset的字典
         Dictionary<string, ProbeVolumeAsset> m_PendingAssetsToBeLoaded = new Dictionary<string, ProbeVolumeAsset>();
         // Information on probes we need to remove.
+        // 维护即将卸载的ProbeVolumeAsset的字典
         Dictionary<string, ProbeVolumeAsset> m_PendingAssetsToBeUnloaded = new Dictionary<string, ProbeVolumeAsset>();
         // Information of the probe volume asset that is being loaded (if one is pending)
+        // 维护已加载的ProbeVolumeAsset的字典
         Dictionary<string, ProbeVolumeAsset> m_ActiveAssets = new Dictionary<string, ProbeVolumeAsset>();
 
         // List of info for cells that are yet to be loaded.
+        // 即将加载的probe volume中cell的列表
         private List<CellSortInfo> m_CellsToBeLoaded = new List<CellSortInfo>();
 
 
@@ -643,6 +689,7 @@ namespace UnityEngine.Experimental.Rendering
             m_MemoryBudget = parameters.memoryBudget;
             m_SHBands = parameters.shBands;
             InitializeDebug(parameters.probeDebugMesh, parameters.probeDebugShader);
+            // 初始化probe volume系统
             InitProbeReferenceVolume(kProbeIndexPoolAllocationSize, m_MemoryBudget, m_SHBands);
             m_IsInitialized = true;
             m_NeedsIndexRebuild = true;
@@ -750,8 +797,14 @@ namespace UnityEngine.Experimental.Rendering
             cell.loaded = false;
         }
 
+        /// <summary>
+        /// 添加一个cell到相关的容器中
+        /// </summary>
+        /// <param name="cell"></param>
+        /// <param name="chunks"></param>
         void AddCell(Cell cell, List<Chunk> chunks)
         {
+            // 更新当前cell被引用的次数
             if (m_CellRefCounting.ContainsKey(cell.index)) m_CellRefCounting[cell.index]++;
             else m_CellRefCounting.Add(cell.index, 1);
 
@@ -780,6 +833,10 @@ namespace UnityEngine.Experimental.Rendering
             return true;
         }
 
+        /// <summary>
+        /// 有效资源的信息更新
+        /// </summary>
+        /// <param name="asset"></param>
         internal void AddPendingAssetLoading(ProbeVolumeAsset asset)
         {
             var key = asset.GetSerializedFullPath();
@@ -803,7 +860,7 @@ namespace UnityEngine.Experimental.Rendering
                                 $"Please make sure all loaded scenes are in the same baking set.");
                 return;
             }
-
+            // 资源加入即将加载字典中
             m_PendingAssetsToBeLoaded.Add(key, asset);
             m_NeedLoadAsset = true;
 
@@ -812,6 +869,7 @@ namespace UnityEngine.Experimental.Rendering
             Vector3Int minCellPosition = Vector3Int.zero;
             Vector3Int maxCellPosition = Vector3Int.zero;
 
+            // 更新(即将加载的资源和已加载的资源形成的)全局包围盒
             bool firstBound = true;
             foreach (var a in m_PendingAssetsToBeLoaded.Values)
             {
@@ -845,12 +903,17 @@ namespace UnityEngine.Experimental.Rendering
             // |= because this can be called more than once before rebuild is done.
             m_NeedsIndexRebuild |= m_Index == null || m_PendingInitInfo.pendingMinCellPosition != minCellPosition || m_PendingInitInfo.pendingMaxCellPosition != maxCellPosition;
 
+            // 更新初始化信息
             m_PendingInitInfo.pendingMinCellPosition = minCellPosition;
             m_PendingInitInfo.pendingMaxCellPosition = maxCellPosition;
         }
 
+        /// <summary>
+        /// 将资源加入到即将卸载的字典中
+        /// </summary>
         internal void AddPendingAssetRemoval(ProbeVolumeAsset asset)
         {
+            // 资源的路径作为key
             var key = asset.GetSerializedFullPath();
             if (m_PendingAssetsToBeUnloaded.ContainsKey(key))
             {
@@ -883,6 +946,9 @@ namespace UnityEngine.Experimental.Rendering
             ClearDebugData();
         }
 
+        /// <summary>
+        /// 初始化ProbeReferenceVolume数据
+        /// </summary>
         void PerformPendingIndexChangeAndInit()
         {
             if (m_NeedsIndexRebuild)
@@ -898,12 +964,22 @@ namespace UnityEngine.Experimental.Rendering
             }
         }
 
+        /// <summary>
+        /// 设置probe volume的虚拟transform的位置，旋转和缩放以及最大细分层级
+        /// </summary>
+        /// <param name="minBrickSize"></param>
+        /// <param name="maxSubdiv"></param>
         internal void SetMinBrickAndMaxSubdiv(float minBrickSize, int maxSubdiv)
         {
+            // 设置probe volume的transform，minBrickSize作为transform.scale
             SetTRS(Vector3.zero, Quaternion.identity, minBrickSize);
             SetMaxSubdivision(maxSubdiv);
         }
 
+        /// <summary>
+        /// 加载一个probe volume asset
+        /// </summary>
+        /// <param name="asset"></param>
         void LoadAsset(ProbeVolumeAsset asset)
         {
             if (asset.Version != (int)ProbeVolumeAsset.AssetVersion.Current)
@@ -915,8 +991,9 @@ namespace UnityEngine.Experimental.Rendering
             var path = asset.GetSerializedFullPath();
 
             // Load info coming originally from profile
+            // 从配置中设置probe volume的虚拟transform和最大细分层级
             SetMinBrickAndMaxSubdiv(asset.minBrickSize, asset.maxSubdivision);
-
+            // 将cell加入待加载列表
             for (int i = 0; i < asset.cells.Count; ++i)
             {
                 var cell = asset.cells[i];
@@ -928,19 +1005,25 @@ namespace UnityEngine.Experimental.Rendering
             }
         }
 
+        /// <summary>
+        /// 更新和加载队列中的probe volume assets
+        /// </summary>
         void PerformPendingLoading()
         {
             if ((m_PendingAssetsToBeLoaded.Count == 0 && m_ActiveAssets.Count == 0) || !m_NeedLoadAsset || !m_ProbeReferenceVolumeInit)
                 return;
 
+            // 初始化probe pool
             m_Pool.EnsureTextureValidity();
 
             // Load the ones that are already active but reload if we said we need to load
             if (m_HasChangedIndex)
             {
                 // We changed index so all assets are going to be re-loaded, hence the refs will be repopulated from scratch
+                // 清空所有cell的索引
                 InvalidateAllCellRefs();
 
+                // 重载所有的probe volume assets
                 foreach (var asset in m_ActiveAssets.Values)
                 {
                     LoadAsset(asset);
@@ -949,19 +1032,24 @@ namespace UnityEngine.Experimental.Rendering
 
             foreach (var asset in m_PendingAssetsToBeLoaded.Values)
             {
+                // 加载需要的probe volume assets
                 LoadAsset(asset);
+                // probe volume asset加入到激活的probe volume列表
                 if (!m_ActiveAssets.ContainsKey(asset.GetSerializedFullPath()))
                 {
                     m_ActiveAssets.Add(asset.GetSerializedFullPath(), asset);
                 }
             }
-
+            // 清空待加载probe volume资源
             m_PendingAssetsToBeLoaded.Clear();
 
             // Mark the loading as done.
             m_NeedLoadAsset = false;
         }
 
+        /// <summary>
+        /// 清空待卸载probe volume资源字典
+        /// </summary>
         void PerformPendingDeletion()
         {
             if (!m_ProbeReferenceVolumeInit)
@@ -978,27 +1066,38 @@ namespace UnityEngine.Experimental.Rendering
             m_PendingAssetsToBeUnloaded.Clear();
         }
 
+        /// <summary>
+        /// 计算cell内有效brick的数量和分布信息
+        /// </summary>
+        /// <param name="cell"></param>
+        /// <param name="minValidLocalIdxAtMaxRes"></param>
+        /// <param name="sizeOfValidIndicesAtMaxRes"></param>
+        /// <returns></returns>
         int GetNumberOfBricksAtSubdiv(Cell cell, out Vector3Int minValidLocalIdxAtMaxRes, out Vector3Int sizeOfValidIndicesAtMaxRes)
         {
             minValidLocalIdxAtMaxRes = Vector3Int.zero;
             sizeOfValidIndicesAtMaxRes = Vector3Int.one;
-
+            // 一个Cell的位置（以brick处于最大层级来计算，也就是最大分辨率3^7）
             var posWS = new Vector3(cell.position.x * MaxBrickSize(), cell.position.y * MaxBrickSize(), cell.position.z * MaxBrickSize());
             Bounds cellBounds = new Bounds();
+            // cell的包围盒的最小值也是cell的位置
             cellBounds.min = posWS;
             cellBounds.max = posWS + (Vector3.one * MaxBrickSize());
 
+            // cell与当前全局包围盒的相交包围盒
             Bounds intersectBound = new Bounds();
             intersectBound.min = Vector3.Max(cellBounds.min, m_CurrGlobalBounds.min);
             intersectBound.max = Vector3.Min(cellBounds.max, m_CurrGlobalBounds.max);
 
             Vector3 size = intersectBound.max - intersectBound.min;
 
+            // minValidLocalIdxAtMaxRes : cell内第一个有效的brick的局部索引
             var toStart = intersectBound.min - cellBounds.min;
             minValidLocalIdxAtMaxRes.x = Mathf.CeilToInt((toStart.x) / MinBrickSize());
             minValidLocalIdxAtMaxRes.y = Mathf.CeilToInt((toStart.y) / MinBrickSize());
             minValidLocalIdxAtMaxRes.z = Mathf.CeilToInt((toStart.z) / MinBrickSize());
 
+            // sizeOfValidIndicesAtMaxRes : cell内各维度上有效brick的数量
             var toEnd = intersectBound.max - cellBounds.min;
             sizeOfValidIndicesAtMaxRes.x = Mathf.CeilToInt((toEnd.x) / MinBrickSize()) - minValidLocalIdxAtMaxRes.x + 1;
             sizeOfValidIndicesAtMaxRes.y = Mathf.CeilToInt((toEnd.y) / MinBrickSize()) - minValidLocalIdxAtMaxRes.y + 1;
@@ -1009,22 +1108,33 @@ namespace UnityEngine.Experimental.Rendering
 
             return bricksForCell.x * bricksForCell.y * bricksForCell.z;
         }
-
+        /// <summary>
+        /// 更新cell中brick索引信息
+        /// </summary>
+        /// <param name="cell"></param>
+        /// <param name="cellUpdateInfo"></param>
+        /// <returns></returns>
         bool GetCellIndexUpdate(Cell cell, out ProbeBrickIndex.CellIndexUpdateInfo cellUpdateInfo)
         {
             cellUpdateInfo = new ProbeBrickIndex.CellIndexUpdateInfo();
 
+            // Cell内有效brick的数量
             int brickCountsAtResolution = GetNumberOfBricksAtSubdiv(cell, out var minValidLocalIdx, out var sizeOfValidIndices);
             cellUpdateInfo.cellPositionInBricksAtMaxRes = cell.position * CellSize(m_MaxSubdivision - 1);
             cellUpdateInfo.minSubdivInCell = cell.minSubdiv;
             cellUpdateInfo.minValidBrickIndexForCellAtMaxRes = minValidLocalIdx;
             cellUpdateInfo.maxValidBrickIndexForCellAtMaxResPlusOne = sizeOfValidIndices + minValidLocalIdx;
-
+            // 为cell分配chunk,分配成功返回true,否则返回false
             return m_Index.AssignIndexChunksToCell(cell, brickCountsAtResolution, ref cellUpdateInfo);
         }
 
+        /// <summary>
+        /// 加载cell内相关信息到buffer中
+        /// </summary>
+        /// <param name="loadAll"></param>
         void LoadPendingCells(bool loadAll = false)
         {
+            // 确定要加载的cell的数量
             int count = Mathf.Min(m_NumberOfCellsLoadedPerFrame, m_CellsToBeLoaded.Count);
             count = loadAll ? m_CellsToBeLoaded.Count : count;
 
@@ -1044,22 +1154,30 @@ namespace UnityEngine.Experimental.Rendering
 
                 bool compressed = false;
                 int allocatedBytes = 0;
+                // 给每个cell创建一组3D Texture，用于存储球谐系数
                 var dataLocation = ProbeBrickPool.CreateDataLocation(cell.sh.Length, compressed, m_SHBands, out allocatedBytes);
+                // 将每个cell的球谐系数填充到3D Texture纹理中
                 ProbeBrickPool.FillDataLocation(ref dataLocation, cell.sh, m_SHBands);
-
+                // 更新cell的一维索引
                 cell.flatIdxInCellIndices = m_CellIndices.GetFlatIdxForCell(cell.position);
 
+                // 为cell分配chunk，分配成功
                 if (GetCellIndexUpdate(cell, out var cellUpdateInfo))
                 {
+                    // 提取cell中的bricks
                     List<ProbeBrickIndex.Brick> brickList = new List<ProbeBrickIndex.Brick>();
                     brickList.AddRange(cell.bricks);
                     List<Chunk> chunkList = new List<Chunk>();
 
+                    // 将一个cell的brick信息编码存入buffer,并返回cell对应的chunk数组
                     var regId = AddBricks(brickList, dataLocation, cellUpdateInfo, out chunkList);
+                    // 维护cell与chunk组id的关系
                     m_BricksToCellUpdateInfo.Add(regId, cellUpdateInfo);
 
+                    // 将cell信息打包以供GPU传递
                     m_CellIndices.AddCell(cell.flatIdxInCellIndices, cellUpdateInfo);
 
+                    // 添加cell到管理器容器中
                     AddCell(cell, chunkList);
                     m_CellToBricks[cell] = regId;
 
@@ -1080,9 +1198,13 @@ namespace UnityEngine.Experimental.Rendering
         /// <param name ="loadAllCells"> True when all cells are to be immediately loaded..</param>
         public void PerformPendingOperations(bool loadAllCells = false)
         {
+            // 清空待卸载的probe volume资源的容器
             PerformPendingDeletion();
+            // 
             PerformPendingIndexChangeAndInit();
+            // 加载probe volumes资源
             PerformPendingLoading();
+            // 加载cells
             LoadPendingCells(loadAllCells);
         }
 
@@ -1099,12 +1221,16 @@ namespace UnityEngine.Experimental.Rendering
             if (!m_ProbeReferenceVolumeInit)
             {
                 Profiler.BeginSample("Initialize Reference Volume");
+                // 初始化probe 3D texture
                 m_Pool = new ProbeBrickPool(allocationSize, memoryBudget, shBands);
 
+                // 初始化brick八叉树结构
                 m_Index = new ProbeBrickIndex(memoryBudget);
+                // 初始化cell信息的编码
                 m_CellIndices = new ProbeCellIndices(minCellPosition, maxCellPosition, (int)Mathf.Pow(3, m_MaxSubdivision - 1));
 
                 // initialize offsets
+                // 在一个brick中，probe的相对位置数组
                 m_PositionOffsets[0] = 0.0f;
                 float probeDelta = 1.0f / ProbeBrickPool.kBrickCellCount;
                 for (int i = 1; i < ProbeBrickPool.kBrickProbeCountPerDim - 1; i++)
@@ -1170,9 +1296,12 @@ namespace UnityEngine.Experimental.Rendering
         }
 
         internal void SetMaxSubdivision(int maxSubdivision) => m_MaxSubdivision = System.Math.Min(maxSubdivision, ProbeBrickIndex.kMaxSubdivisionLevels);
+        // 一个cell包含的brick的数量
         internal static int CellSize(int subdivisionLevel) => (int)Mathf.Pow(ProbeBrickPool.kBrickCellCount, subdivisionLevel);
+        // 一个cell包含的brick的数量，如果Cell跟随probe volume放大，则包含的brick个数会增加
         internal float BrickSize(int subdivisionLevel) => m_Transform.scale * CellSize(subdivisionLevel);
         internal float MinBrickSize() => m_Transform.scale;
+        // cell包含的最多的brick数量
         internal float MaxBrickSize() => BrickSize(m_MaxSubdivision - 1);
         internal Matrix4x4 GetRefSpaceToWS() => m_Transform.refSpaceToWS;
         internal RefVolTransform GetTransform() => m_Transform;
@@ -1206,6 +1335,14 @@ namespace UnityEngine.Experimental.Rendering
         }
 
         // Runtime API starts here
+        /// <summary>
+        /// 将一个cell中的brick的多种信息编码进buffer，并返回一组chunks
+        /// </summary>
+        /// <param name="bricks"></param>
+        /// <param name="dataloc"></param>
+        /// <param name="cellUpdateInfo"></param>
+        /// <param name="ch_list"></param>
+        /// <returns></returns>
         RegId AddBricks(List<Brick> bricks, ProbeBrickPool.DataLocation dataloc, ProbeBrickIndex.CellIndexUpdateInfo cellUpdateInfo, out List<Chunk> ch_list)
         {
             Profiler.BeginSample("AddBricks");
@@ -1213,6 +1350,7 @@ namespace UnityEngine.Experimental.Rendering
             // calculate the number of chunks necessary
             int ch_size = m_Pool.GetChunkSize();
             ch_list = new List<Chunk>((bricks.Count + ch_size - 1) / ch_size);
+            // 从全局pool中获取容纳bricks的chunk列表
             m_Pool.Allocate(ch_list.Capacity, ch_list);
 
             // copy chunks into pool
@@ -1224,6 +1362,7 @@ namespace UnityEngine.Experimental.Rendering
             c.z = 0;
 
             // currently this code assumes that the texture width is a multiple of the allocation chunk size
+            // 将dataloc的数据组织为chunk列表，以便之后拷贝到全局Pool
             for (int i = 0; i < ch_list.Count; i++)
             {
                 m_TmpSrcChunks.Add(c);
@@ -1241,6 +1380,7 @@ namespace UnityEngine.Experimental.Rendering
             }
 
             // Update the pool and index and ignore any potential frame latency related issues for now
+            // 将dataloc的球谐数据拷贝到全局Pool
             m_Pool.Update(dataloc, m_TmpSrcChunks, ch_list, m_SHBands);
 
             m_BricksLoaded = true;
@@ -1252,6 +1392,7 @@ namespace UnityEngine.Experimental.Rendering
             m_Registry.Add(id, ch_list);
 
             // Build index
+            // 为一组chunk内的brick创建信息索引并传递到buffer中，以供GPU使用
             m_Index.AddBricks(id, bricks, ch_list, m_Pool.GetChunkSize(), m_Pool.GetPoolWidth(), m_Pool.GetPoolHeight(), cellUpdateInfo);
 
             Profiler.EndSample();
@@ -1310,6 +1451,7 @@ namespace UnityEngine.Experimental.Rendering
 
         /// <summary>
         /// Cleanup loaded data.
+        /// 需清理的数据包括：构建的brick八叉树结构；probe volume 中cell索引数据；存储probe球谐系数的体数据；
         /// </summary>
         void CleanupLoadedData()
         {

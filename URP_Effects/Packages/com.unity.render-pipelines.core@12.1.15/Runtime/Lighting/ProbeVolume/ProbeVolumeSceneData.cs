@@ -14,45 +14,52 @@ namespace UnityEngine.Experimental.Rendering
 
     /// <summary>
     /// A class containing info about the bounds defined by the probe volumes in various scenes.
+    /// 场景probes烘焙的配置数据
     /// </summary>
     [System.Serializable]
     public class ProbeVolumeSceneData : ISerializationCallbackReceiver
     {
+        // 通过反射拿到场景资源的guid
         static PropertyInfo s_SceneGUID = typeof(Scene).GetProperty("guid", System.Reflection.BindingFlags.NonPublic | BindingFlags.Instance);
+        /// <summary>
+        /// 获取场景的guid
+        /// </summary>
+        /// <param name="scene"></param>
+        /// <returns></returns>
         string GetSceneGUID(Scene scene)
         {
             Debug.Assert(s_SceneGUID != null, "Reflection for scene GUID failed");
             return (string)s_SceneGUID.GetValue(scene);
         }
-
+        // 场景的包围盒
         [System.Serializable]
         struct SerializableBoundItem
         {
             [SerializeField] public string sceneGUID;
             [SerializeField] public Bounds bounds;
         }
-
+        // 场景是否有probe volumes
         [System.Serializable]
         struct SerializableHasPVItem
         {
             [SerializeField] public string sceneGUID;
             [SerializeField] public bool hasProbeVolumes;
         }
-
+        // 场景控制烘焙质量的配置文件
         [System.Serializable]
         struct SerializablePVProfile
         {
             [SerializeField] public string sceneGUID;
             [SerializeField] public ProbeReferenceVolumeProfile profile;
         }
-
+        // 场景的烘焙过程设置
         [System.Serializable]
         struct SerializablePVBakeSettings
         {
             [SerializeField] public string sceneGUID;
             [SerializeField] public ProbeVolumeBakingProcessSettings settings;
         }
-
+        // 多场景的烘焙设置集合
         [System.Serializable]
         internal class BakingSet
         {
@@ -75,6 +82,7 @@ namespace UnityEngine.Experimental.Rendering
         public Dictionary<string, Bounds> sceneBounds;
         internal Dictionary<string, bool> hasProbeVolumes;
         internal Dictionary<string, ProbeReferenceVolumeProfile> sceneProfiles;
+        // key : 场景的guid; value : probevolume的烘焙设置
         internal Dictionary<string, ProbeVolumeBakingProcessSettings> sceneBakingSettings;
         internal List<BakingSet> bakingSets;
 
@@ -150,6 +158,9 @@ namespace UnityEngine.Experimental.Rendering
         }
 
         // This function must not be called during the serialization (because of asset creation)
+        /// <summary>
+        /// 更新场景的烘焙设置
+        /// </summary>
         void UpdateBakingSets()
         {
             foreach (var set in serializedBakingSets)
@@ -221,6 +232,11 @@ namespace UnityEngine.Experimental.Rendering
                 serializedBakingSets.Add(set);
         }
 
+        /// <summary>
+        /// 创建新的BakingSet
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         internal BakingSet CreateNewBakingSet(string name)
         {
             BakingSet set = new BakingSet();
@@ -231,7 +247,11 @@ namespace UnityEngine.Experimental.Rendering
 
             return set;
         }
-
+        /// <summary>
+        /// 初始化BakingSet
+        /// </summary>
+        /// <param name="set"></param>
+        /// <param name="name"></param>
         void InitializeBakingSet(BakingSet set, string name)
         {
             var newProfile = ScriptableObject.CreateInstance<ProbeReferenceVolumeProfile>();
@@ -259,7 +279,9 @@ namespace UnityEngine.Experimental.Rendering
                 }
             };
         }
-
+        /// <summary>
+        /// 同步场景的烘焙设置，组织为字典
+        /// </summary>
         internal void SyncBakingSetSettings()
         {
             // Sync all the scene settings in the set to avoid config mismatch.
@@ -289,10 +311,16 @@ namespace UnityEngine.Experimental.Rendering
             return subdivLevel;
         }
 
+        /// <summary>
+        /// 将用户自定义的不规则Probe Volume边界，调整到符合Cell网格和Brick放置规则的边界
+        /// </summary>
+        /// <param name="bounds"></param>
+        /// <param name="pv"></param>
         private void InflateBound(ref Bounds bounds, ProbeVolume pv)
         {
             Bounds originalBounds = bounds;
             // Round the probe volume bounds to cell size
+            // probe volume单个轴包含cell的数量
             float cellSize = ProbeReferenceVolume.instance.MaxBrickSize();
 
             // Expand the probe volume bounds to snap on the cell size grid
@@ -330,6 +358,10 @@ namespace UnityEngine.Experimental.Rendering
             );
         }
 
+        /// <summary>
+        /// 更新场景的probe volume的包围盒
+        /// </summary>
+        /// <param name="scene"></param>
         internal void UpdateSceneBounds(Scene scene)
         {
             var volumes = UnityEngine.GameObject.FindObjectsOfType<ProbeVolume>();
@@ -337,6 +369,7 @@ namespace UnityEngine.Experimental.Rendering
             // If we have not yet loaded any asset, we haven't initialized the probe reference volume with any info from the profile.
             // As a result we need to prime with the profile info directly stored here.
             {
+                // 拿到场景的质量配置，设置场景的probe volume的transform和最小细分层级
                 var profile = GetProfileForScene(scene);
                 if (profile == null)
                 {
@@ -365,6 +398,7 @@ namespace UnityEngine.Experimental.Rendering
 
                     Bounds localBounds = new Bounds(pos, extent);
 
+                    // 包围盒边界对齐到cell网格
                     InflateBound(ref localBounds, volume);
 
                     if (!boundFound)
@@ -424,15 +458,22 @@ namespace UnityEngine.Experimental.Rendering
         }
 
         // It is important this is called after UpdateSceneBounds is called!
+        /// <summary>
+        /// 保证场景挂载ProbeVolumePerSceneData组件
+        /// </summary>
+        /// <param name="scene"></param>
         internal void EnsurePerSceneData(Scene scene)
         {
             var sceneGUID = GetSceneGUID(scene);
 
+            // 如果场景中有probe volume，则拿到场景内的ProbeVolumePerSceneData组件
             if (hasProbeVolumes.ContainsKey(sceneGUID) && hasProbeVolumes[sceneGUID])
             {
                 var perSceneData = UnityEngine.GameObject.FindObjectsOfType<ProbeVolumePerSceneData>();
 
                 bool foundPerSceneData = false;
+                // 如果挂了ProbeVolumePerSceneData组件的对象上关联的场景是当前场景，则PerSceneData标记为找到，如果关联的不是当前场景，
+                // 则创建新的对象挂载ProbeVolumePerSceneData组件，并且将当前对象移动到它关键的场景中
                 foreach (var data in perSceneData)
                 {
                     if (GetSceneGUID(data.gameObject.scene) == sceneGUID)
@@ -479,9 +520,13 @@ namespace UnityEngine.Experimental.Rendering
 
         internal void OnSceneSaved(Scene scene)
         {
+            // 判断场景是否存在probe volume，更新标记
             EnsureSceneHasProbeVolumeIsValid(scene);
+            // 为每个场景都维护它的probe volume烘焙设置
             EnsureSceneIsInBakingSet(scene);
+            // 保证有Probe volume的场景有ProbeVolumePerSceneData数据
             EnsurePerSceneData(scene);
+            // 更新
             UpdateSceneBounds(scene);
         }
 
@@ -511,6 +556,11 @@ namespace UnityEngine.Experimental.Rendering
             sceneBakingSettings[sceneGUID] = settings;
         }
 
+        /// <summary>
+        /// 返回场景的烘培质量配置
+        /// </summary>
+        /// <param name="scene"></param>
+        /// <returns></returns>
         internal ProbeReferenceVolumeProfile GetProfileForScene(Scene scene)
         {
             var sceneGUID = GetSceneGUID(scene);

@@ -15,6 +15,7 @@ namespace UnityEngine.Rendering
         internal readonly Dictionary<Type, VolumeComponent> components = new();
 
         // Holds the default value for every volume parameter for faster per-frame stack reset.
+        // 是一个元组数组,在当前程序集中可见,等价于先创建一个结构体，再声明结构体的数组，元组语法更简介，适合作为临时数据结构
         internal (VolumeParameter parameter, VolumeParameter defaultValue)[] defaultParameters;
 
         internal bool requiresReset = true;
@@ -34,10 +35,12 @@ namespace UnityEngine.Rendering
             List<(VolumeParameter parameter, VolumeParameter defaultValue)> defaultParametersList = new();
             foreach (var defaultVolumeComponent in componentDefaultStates)
             {
+                // 提取组件类型，并创建一个实例加入字典
                 var type = defaultVolumeComponent.GetType();
                 var component = (VolumeComponent)ScriptableObject.CreateInstance(type);
                 components.Add(type, component);
 
+                // 记录组件的实例参数和默认参数
                 int count = component.parameters.Count;
                 for (int i = 0; i < count; i++)
                 {
@@ -49,6 +52,7 @@ namespace UnityEngine.Rendering
                 }
             }
 
+            // 列表转化为数组
             defaultParameters = defaultParametersList.ToArray();
         }
 

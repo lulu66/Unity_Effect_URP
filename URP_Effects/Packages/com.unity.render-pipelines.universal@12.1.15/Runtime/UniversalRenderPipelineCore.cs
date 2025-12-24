@@ -42,7 +42,10 @@ namespace UnityEngine.Rendering.Universal
         Point,
 
         /// FidelityFX Super Resolution
-        FSR
+        FSR,
+
+        /// Gradient Adaptive Up Sampling and Signal-Filtering
+        GAUSSF,
     }
 
     public struct RenderingData
@@ -87,6 +90,7 @@ namespace UnityEngine.Rendering.Universal
         Matrix4x4 m_ViewMatrix;
         Matrix4x4 m_ProjectionMatrix;
 
+        // --------------------------------------------
         internal void SetViewAndProjectionMatrix(Matrix4x4 viewMatrix, Matrix4x4 projectionMatrix)
         {
             m_ViewMatrix = viewMatrix;
@@ -144,6 +148,10 @@ namespace UnityEngine.Rendering.Universal
         internal ImageUpscalingFilter upscalingFilter;
         internal bool fsrOverrideSharpness;
         internal float fsrSharpness;
+        // -------------------GAUSSF START -------------------
+        internal float gaussfSharpness;
+        internal int gaussfQualityLevel;
+        // -------------------GAUSSF END -------------------
         public bool clearDepth;
         public CameraType cameraType;
         public bool isDefaultViewport;
@@ -258,6 +266,7 @@ namespace UnityEngine.Rendering.Universal
         public int mainLightShadowmapWidth;
         public int mainLightShadowmapHeight;
         public int mainLightShadowCascadesCount;
+        // 级联阴影的分割点，最多支持4级阴影，所以最多3个分割点
         public Vector3 mainLightShadowCascadesSplit;
         /// <summary>
         /// Main light last cascade shadow fade border.
@@ -428,6 +437,9 @@ namespace UnityEngine.Rendering.Universal
         public const string TonemapNeutral = "_TONEMAP_NEUTRAL";
         public const string FilmGrain = "_FILM_GRAIN";
         public const string Fxaa = "_FXAA";
+        // GAUSSF
+        public static readonly string[] GaussF_ColorSpace = { "_GAUSSF_RGB", "_GAUSSF_YUV" };
+
         public const string Dithering = "_DITHERING";
         public const string ScreenSpaceOcclusion = "_SCREEN_SPACE_OCCLUSION";
         public const string PointSampling = "_POINT_SAMPLING";
@@ -553,7 +565,12 @@ namespace UnityEngine.Rendering.Universal
         }
 
 #endif
-
+        /// <summary>
+        /// 根据是否支持hdr，是否需要透明A通道选择不同的rt格式
+        /// </summary>
+        /// <param name="isHdrEnabled"></param>
+        /// <param name="needsAlpha"></param>
+        /// <returns></returns>
         static GraphicsFormat MakeRenderTextureGraphicsFormat(bool isHdrEnabled, bool needsAlpha)
         {
             if (isHdrEnabled)

@@ -40,6 +40,7 @@ namespace UnityEngine.Rendering
 
         /// <summary>
         /// The current list of all available types that derive from <see cref="VolumeComponent"/>.
+        /// 当前拥有的所有组件的类型
         /// </summary>
         public Type[] baseComponentTypeArray { get; private set; }
 
@@ -58,6 +59,7 @@ namespace UnityEngine.Rendering
         // Internal list of default state for each component type - this is used to reset component
         // states on update instead of having to implement a Reset method on all components (which
         // would be error-prone)
+        // 当前拥有的所有volume组件的实例
         readonly List<VolumeComponent> m_ComponentsDefaultState;
 
         // Recycled list used for volume traversal
@@ -78,6 +80,7 @@ namespace UnityEngine.Rendering
 
             ReloadBaseTypes();
 
+            // 默认的volume stack, stack是可以变化的
             m_DefaultStack = CreateStack();
             stack = m_DefaultStack;
         }
@@ -85,6 +88,7 @@ namespace UnityEngine.Rendering
         /// <summary>
         /// Creates and returns a new <see cref="VolumeStack"/> to use when you need to store
         /// the result of the Volume blending pass in a separate stack.
+        /// 将默认的volume组件实例存储为volume stack
         /// </summary>
         /// <returns></returns>
         /// <seealso cref="VolumeStack"/>
@@ -116,17 +120,22 @@ namespace UnityEngine.Rendering
 
         // This will be called only once at runtime and everytime script reload kicks-in in the
         // editor as we need to keep track of any compatible component in the project
+        /// <summary>
+        /// 通过反射找到当前所拥有的所有volume组件类型，并创建对应的默认实例；
+        /// </summary>
         void ReloadBaseTypes()
         {
             m_ComponentsDefaultState.Clear();
 
             // Grab all the component types we can find
+            // 查找所有继承volume component的组件，返回组件数组
             baseComponentTypeArray = CoreUtils.GetAllTypesDerivedFrom<VolumeComponent>()
                 .Where(t => !t.IsAbstract).ToArray();
 
             var flags = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic;
             // Keep an instance of each type to be used in a virtual lowest priority global volume
             // so that we have a default state to fallback to when exiting volumes
+            // 创建组件的实例加入列表中
             foreach (var type in baseComponentTypeArray)
             {
                 type.GetMethod("Init", flags)?.Invoke(null, null);
@@ -139,6 +148,7 @@ namespace UnityEngine.Rendering
         /// Registers a new Volume in the manager. Unity does this automatically when a new Volume is
         /// enabled, or its layer changes, but you can use this function to force-register a Volume
         /// that is currently disabled.
+        /// 注册volume,并根据它的layermask，在字典中排序
         /// </summary>
         /// <param name="volume">The volume to register.</param>
         /// <param name="layer">The LayerMask that this volume is in.</param>
@@ -186,6 +196,7 @@ namespace UnityEngine.Rendering
 
         /// <summary>
         /// Checks if a <see cref="VolumeComponent"/> is active in a given LayerMask.
+        /// 当前的layermask下是否存在激活的volume component
         /// </summary>
         /// <typeparam name="T">A type derived from <see cref="VolumeComponent"/></typeparam>
         /// <param name="layerMask">The LayerMask to check against</param>
@@ -235,6 +246,7 @@ namespace UnityEngine.Rendering
         }
 
         // Go through all listed components and lerp overridden values in the global state
+        // 将stack中的volume组件参数的值用给定的组件列表里对应组件的参数和混合系数覆写
         void OverrideData(VolumeStack stack, List<VolumeComponent> components, float interpFactor)
         {
             foreach (var component in components)
@@ -248,6 +260,10 @@ namespace UnityEngine.Rendering
         }
 
         // Faster version of OverrideData to force replace values in the global state
+        /// <summary>
+        /// 将volume stack中的volume参数全替换为默认参数
+        /// </summary>
+        /// <param name="stack"></param>
         void ReplaceData(VolumeStack stack)
         {
             var resetParameters = stack.defaultParameters;
@@ -337,6 +353,7 @@ namespace UnityEngine.Rendering
 
         /// <summary>
         /// Updates the Volume manager and stores the result in a custom <see cref="VolumeStack"/>.
+        /// 混合和更新各后处理效果的参数，根据权重和volume的距离进行插值
         /// </summary>
         /// <param name="stack">The stack to store the blending result into.</param>
         /// <param name="trigger">A reference Transform to consider for positional Volume blending.
@@ -348,23 +365,30 @@ namespace UnityEngine.Rendering
         {
             Assert.IsNotNull(stack);
 
+            // 如果当前volume组件不存在，需重新加载volume组件
             CheckBaseTypes();
+            // 重载stack中volume组件类型及参数
             CheckStack(stack);
 
             if (!CheckUpdateRequired(stack))
                 return;
 
             // Start by resetting the global state to default values
+            // 重置stack中的volume 参数
             ReplaceData(stack);
 
+            // 如果没有触发器，则判定为只有全局volume
             bool onlyGlobal = trigger == null;
+            // 只有全局volume，触发位置为原点，否则为触发器的位置
             var triggerPos = onlyGlobal ? Vector3.zero : trigger.position;
 
             // Sort the cached volume list(s) for the given layer mask if needed and return it
+            // 获取layermask 为给定的参数的volumes
             var volumes = GrabVolumes(layerMask);
 
             Camera camera = null;
             // Behavior should be fine even if camera is null
+            // 如果不是全局volume,则获取触发器上的相机
             if (!onlyGlobal)
                 trigger.TryGetComponent<Camera>(out camera);
 
@@ -385,6 +409,7 @@ namespace UnityEngine.Rendering
                     continue;
 
                 // Global volumes always have influence
+                // 如果是全局volume，则stack中的volume参数用profileRef的组件中参数和权重进行插值覆写
                 if (volume.isGlobal)
                 {
                     OverrideData(stack, volume.profileRef.components, Mathf.Clamp01(volume.weight));
@@ -395,6 +420,7 @@ namespace UnityEngine.Rendering
                     continue;
 
                 // If volume isn't global and has no collider, skip it as it's useless
+                // 对于局部volume，获取碰撞体列表
                 var colliders = m_TempColliders;
                 volume.GetComponents(colliders);
                 if (colliders.Count == 0)
@@ -408,14 +434,18 @@ namespace UnityEngine.Rendering
                     if (!collider.enabled)
                         continue;
 
+                    // 获取碰撞体上离触发点最近的点
                     var closestPoint = collider.ClosestPoint(triggerPos);
+                    // 触发点离最近的碰撞体上的点的距离的平方
                     var d = (closestPoint - triggerPos).sqrMagnitude;
 
+                    // 更新最近距离
                     if (d < closestDistanceSqr)
                         closestDistanceSqr = d;
                 }
 
                 colliders.Clear();
+                // 混合距离的平方
                 float blendDistSqr = volume.blendDistance * volume.blendDistance;
 
                 // Volume has no influence, ignore it
@@ -428,10 +458,12 @@ namespace UnityEngine.Rendering
                 // Volume has influence
                 float interpFactor = 1f;
 
+                // 混合系数：基于混合距离和当前离触发点的最近距离的比例
                 if (blendDistSqr > 0f)
                     interpFactor = 1f - (closestDistanceSqr / blendDistSqr);
 
                 // No need to clamp01 the interpolation factor as it'll always be in [0;1[ range
+                // 插值覆写stack中各volume参数
                 OverrideData(stack, volume.profileRef.components, interpFactor * Mathf.Clamp01(volume.weight));
             }
         }
@@ -448,6 +480,7 @@ namespace UnityEngine.Rendering
             return volumes.ToArray();
         }
 
+        // 按Layer掩码获取volume对象列表，每个layer下的volume都按照优先级进行排序
         List<Volume> GrabVolumes(LayerMask mask)
         {
             List<Volume> list;

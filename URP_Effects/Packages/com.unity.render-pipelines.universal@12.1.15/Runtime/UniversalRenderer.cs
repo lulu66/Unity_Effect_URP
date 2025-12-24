@@ -112,6 +112,13 @@ namespace UnityEngine.Rendering.Universal
 #if UNITY_EDITOR
         CopyDepthPass m_FinalDepthCopyPass;
 #endif
+        // ------------------ TAA ------------------
+        TAACameraSettingPass m_TaaCameraSettingPass;
+        TAACustomPass m_TaaCustomPass;
+        Dictionary<Camera, TAACustomData> m_TaaDatas;
+        Matrix4x4 m_PreviousProjectionMatrix = Matrix4x4.identity;
+        Matrix4x4 m_PreviousViewMatrix = Matrix4x4.identity;
+        // ------------------------------------------
         // 渲染目标管理系统
         internal RenderTargetBufferSystem m_ColorBufferSystem;
 
@@ -197,6 +204,7 @@ namespace UnityEngine.Rendering.Universal
             // TODO: replace/merge URP blit into core blitter.
             Blitter.Initialize(data.shaders.coreBlitPS, data.shaders.coreBlitColorAndDepthPS);
 
+            // 1.材质初始化
             m_BlitMaterial = CoreUtils.CreateEngineMaterial(data.shaders.blitPS);
             m_CopyDepthMaterial = CoreUtils.CreateEngineMaterial(data.shaders.copyDepthPS);
             m_SamplingMaterial = CoreUtils.CreateEngineMaterial(data.shaders.samplingPS);
@@ -206,6 +214,7 @@ namespace UnityEngine.Rendering.Universal
             m_CameraMotionVecMaterial = CoreUtils.CreateEngineMaterial(data.shaders.cameraMotionVector);
             m_ObjectMotionVecMaterial = CoreUtils.CreateEngineMaterial(data.shaders.objectMotionVector);
 
+            // 2.渲染状态初始化
             StencilStateData stencilData = data.defaultStencilState;
             m_DefaultStencilState = StencilState.defaultValue;
             m_DefaultStencilState.enabled = stencilData.overrideStencilState;
@@ -214,10 +223,13 @@ namespace UnityEngine.Rendering.Universal
             m_DefaultStencilState.SetFailOperation(stencilData.failOperation);
             m_DefaultStencilState.SetZFailOperation(stencilData.zFailOperation);
 
+            // 渲染是否需要中间纹理
             m_IntermediateTextureMode = data.intermediateTextureMode;
 
             {
                 var settings = LightCookieManager.Settings.GetDefault();
+
+                // 3.初始化lightcookie管理器
                 var asset = UniversalRenderPipeline.asset;
                 if (asset)
                 {
@@ -236,7 +248,7 @@ namespace UnityEngine.Rendering.Universal
             this.stripAdditionalLightOffVariants = !IsRunningXRMobile();
 #endif
 #endif
-
+            // 4.前向光源的初始化
             ForwardLights.InitParams forwardInitParams;
             forwardInitParams.lightCookieManager = m_LightCookieManager;
             forwardInitParams.clusteredRendering = data.clusteredRendering;
@@ -257,8 +269,16 @@ namespace UnityEngine.Rendering.Universal
 
             // Note: Since all custom render passes inject first and we have stable sort,
             // we inject the builtin passes in the before events.
+
+            // 5.内置renderpass的初始化
             m_MainLightShadowCasterPass = new MainLightShadowCasterPass(RenderPassEvent.BeforeRenderingShadows);
             m_AdditionalLightsShadowCasterPass = new AdditionalLightsShadowCasterPass(RenderPassEvent.BeforeRenderingShadows);
+
+            // --------------------TAA-------------------------
+            m_TaaCameraSettingPass = new TAACameraSettingPass();
+            m_TaaCustomPass = new TAACustomPass(data.postProcessData);
+            m_TaaDatas = new Dictionary<Camera, TAACustomData>();
+            // ------------------------------------------------
 
 #if ENABLE_VR && ENABLE_XR_MODULE
             m_XROcclusionMeshPass = new XROcclusionMeshPass(RenderPassEvent.BeforeRenderingOpaques);
@@ -335,11 +355,13 @@ namespace UnityEngine.Rendering.Universal
 #if UNITY_EDITOR
             m_FinalDepthCopyPass = new CopyDepthPass(RenderPassEvent.AfterRendering + 9, m_CopyDepthMaterial);
 #endif
-
+            // 6.双缓冲系统的初始化
             // RenderTexture format depends on camera and pipeline (HDR, non HDR, etc)
             // Samples (MSAA) depend on camera and pipeline
             // 初始化渲染目标管理系统，创建两个用于交换的buffer:_CameraColorAttachmentA和_CameraColorAttachmentB;
             m_ColorBufferSystem = new RenderTargetBufferSystem("_CameraColorAttachment");
+
+            // 内置的功能性rt的初始化
             m_CameraDepthAttachment.Init("_CameraDepthAttachment");
             m_DepthTexture.Init("_CameraDepthTexture");
             m_NormalsTexture.Init("_CameraNormalsTexture");
@@ -376,6 +398,13 @@ namespace UnityEngine.Rendering.Universal
             m_ForwardLights.Cleanup();
             m_PostProcessPasses.Dispose();
 
+            // ------------------- TAA ---------------------
+            m_TaaCustomPass.Cleanup();
+            if(m_TaaDatas != null)
+			{
+                m_TaaDatas.Clear();
+			}
+            // ---------------------------------------------
             base.Dispose(disposing);
             CoreUtils.Destroy(m_BlitMaterial);
             CoreUtils.Destroy(m_CopyDepthMaterial);
@@ -777,6 +806,29 @@ namespace UnityEngine.Rendering.Universal
             if (additionalLightShadows)
                 EnqueuePass(m_AdditionalLightsShadowCasterPass);
 
+            // ---------------------TAA----------------------
+            bool isTaaEnable = renderingData.cameraData.antialiasing == AntialiasingMode.TemporalAntialiasing && !renderingData.cameraData.isSceneViewCamera;
+            if (isTaaEnable)
+			{
+                if(!m_TaaDatas.TryGetValue(cameraData.camera, out var taaData))
+				{
+                    taaData = new TAACustomData();
+                    m_TaaDatas.Add(cameraData.camera,taaData);
+				}
+
+                var stack = VolumeManager.instance.stack;
+                var taaParams = stack.GetComponent<TAACustom>();
+
+                // 更新相机jitter矩阵
+                UpdateTAAData(taaData, taaParams, ref renderingData);
+
+                m_TaaCameraSettingPass.Setup(taaData);
+                EnqueuePass(m_TaaCameraSettingPass);
+                m_TaaCustomPass.Setup(taaData, taaParams);
+                EnqueuePass(m_TaaCustomPass);
+			}
+            // ----------------------------------------------
+
             if (requiresDepthPrepass)
             {
                 // 如果需要depth prepass和normal texture，则设置好DepthNormalPrepass,并加入到激活的pass队列
@@ -963,7 +1015,7 @@ namespace UnityEngine.Rendering.Universal
             //    to add additional render passes after post processing occurs, we can't run FXAA until all of those passes complete as well.
             //    The FinalPost pass is guaranteed to execute after user authored passes so FXAA is always run inside of it.
             // 2. UberPost can only handle upscaling with linear filtering. All other filtering methods require the FinalPost pass.
-            // 是否应用final post processing(final post process包括：相机是否开启fastApproximateAntialiasing，相机是否使用向上缩放rt操作且过滤方式为线性)？
+            // 是否应用final post processing(final post process包括：相机是否开启fastApproximateAntialiasing，相机是否使用超分且过滤方式不为线性)？
             bool applyFinalPostProcessing = anyPostProcessing && lastCameraInTheStack &&
                 ((renderingData.cameraData.antialiasing == AntialiasingMode.FastApproximateAntialiasing) ||
                  ((renderingData.cameraData.imageScalingMode == ImageScalingMode.Upscaling) && (renderingData.cameraData.upscalingFilter != ImageUpscalingFilter.Linear)));
@@ -984,6 +1036,7 @@ namespace UnityEngine.Rendering.Universal
                 if (applyPostProcessing)
                 {
                     // if resolving to screen we need to be able to perform sRGBConversion in post-processing if necessary
+                    // 是否需要做颜色空间的转换
                     bool doSRGBConversion = resolvePostProcessingToCameraTarget;
                     postProcessPass.Setup(cameraTargetDescriptor, m_ActiveCameraColorAttachment, resolvePostProcessingToCameraTarget, m_ActiveCameraDepthAttachment, colorGradingLut, applyFinalPostProcessing, doSRGBConversion);
                     EnqueuePass(postProcessPass);
@@ -1304,7 +1357,7 @@ namespace UnityEngine.Rendering.Universal
 
                     depthDescriptor.colorFormat = RenderTextureFormat.Depth;
                     depthDescriptor.depthBufferBits = k_DepthStencilBufferBits;
-                    // 创建临时rt作为当前激活的深度附着
+                    // 创建临时rt作为当前激活的深度附着,因为在此之前m_ActiveCameraDepthAttachment拷贝了m_CameraDepthAttachment的id，所以实际上也相当于m_CameraDepthAttachment指向了临时创建的rt
                     cmd.GetTemporaryRT(m_ActiveCameraDepthAttachment.id, depthDescriptor, FilterMode.Point);
                 }
             }
@@ -1401,6 +1454,10 @@ namespace UnityEngine.Rendering.Universal
             return supportsDepthCopy || msaaDepthResolve;
         }
 
+        /// <summary>
+        /// 交换颜色缓冲区，将当前的颜色附件指向后背缓冲区，写入目标指向前向缓冲区
+        /// </summary>
+        /// <param name="cmd"></param>
         internal override void SwapColorBuffer(CommandBuffer cmd)
         {
             m_ColorBufferSystem.Swap();
@@ -1425,5 +1482,25 @@ namespace UnityEngine.Rendering.Universal
         {
             m_ColorBufferSystem.EnableMSAA(enable);
         }
+
+        // --------------------- TAA ------------------------
+        internal void UpdateTAAData(TAACustomData taaData, TAACustom taaParams, ref RenderingData renderingData)
+		{
+            var camera = renderingData.cameraData.camera;
+            // 采样点的偏移
+            Vector2 additionalSample = TAACustomUtils.GenerateRandomOffset() * taaParams.spread.value;
+            taaData.sampleOffset = additionalSample;
+            // 前一帧的投影矩阵、视图矩阵和抖动的投影矩阵
+            taaData.projPrevious = m_PreviousProjectionMatrix;
+            taaData.viewPrevious = m_PreviousViewMatrix;
+            taaData.projOverride = camera.orthographic
+                       ? TAACustomUtils.GetJitteredOrthographicProjectionMatrix(camera, taaData.sampleOffset)
+                       : TAACustomUtils.GetJitteredPerspectiveProjectionMatrix(camera, taaData.sampleOffset);
+            // 像素单位的采样点偏移量
+            taaData.sampleOffset = new Vector2(taaData.sampleOffset.x / camera.scaledPixelWidth, taaData.sampleOffset.y / camera.scaledPixelHeight);
+            m_PreviousViewMatrix = camera.worldToCameraMatrix;
+            m_PreviousProjectionMatrix = camera.projectionMatrix;
+        }
+        // -------------------------------------------------
     }
 }

@@ -28,6 +28,10 @@ namespace UnityEngine.Rendering.Universal
             ProjectWindowUtil.StartNameEditingIfProjectWindowExists(0, CreateInstance<CreatePostProcessDataAsset>(), "CustomPostProcessData.asset", null, null);
         }
 
+        /// <summary>
+        /// 获取PostProcessData资源中的数据
+        /// </summary>
+        /// <returns></returns>
         internal static PostProcessData GetDefaultPostProcessData()
         {
             var path = System.IO.Path.Combine(UniversalRenderPipelineAsset.packagePath, "Runtime/Data/PostProcessData.asset");
@@ -76,11 +80,22 @@ namespace UnityEngine.Rendering.Universal
             [Reload("Shaders/PostProcessing/EdgeAdaptiveSpatialUpsampling.shader")]
             public Shader easuPS;
 
+            // --------------------Gaussf start--------------------
+            [Reload("Shaders/PostProcessing/gaussf/GAUSSF.shader")]
+            public Shader gaussfUpscalerPS;
+
+            [Reload("Shaders/PostProcessing/gaussf/GAUSSF.compute")]
+            public ComputeShader gaussfUpscalerCS;
+            // ---------------------Gaussf end---------------------
+
             [Reload("Shaders/PostProcessing/UberPost.shader")]
             public Shader uberPostPS;
 
             [Reload("Shaders/PostProcessing/FinalPost.shader")]
             public Shader finalPostPassPS;
+
+            [Reload("Shaders/PostProcessing/TAACustom.shader")]
+            public Shader taaCustomPS;
         }
 
         [Serializable, ReloadGroup]

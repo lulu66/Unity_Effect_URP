@@ -41,6 +41,11 @@ namespace UnityEditor.Rendering.Universal
             public static GUIContent fsrOverrideSharpness = EditorGUIUtility.TrTextContent("Override FSR Sharpness", "Overrides the FSR sharpness value for the render pipeline asset.");
             public static GUIContent fsrSharpnessText = EditorGUIUtility.TrTextContent("FSR Sharpness", "Controls the intensity of the sharpening filter used by FidelityFX Super Resolution.");
 
+            // --------------------GAUSSF START--------------------
+            public static GUIContent gaussfSharpnessText = EditorGUIUtility.TrTextContent("Gaussf Sharpness", "Controls the intensity of the sharpening filter used by GAUSS-F.");
+            public static GUIContent gaussfQualityLevel = EditorGUIUtility.TrTextContent("Gaussf Quality Level", "Controls the quality level of the GAUSS-F.");
+            // ---------------------GAUSSF END---------------------
+
             // Main light
             public static GUIContent mainLightRenderingModeText = EditorGUIUtility.TrTextContent("Main Light", "Main light is the brightest directional light.");
             public static GUIContent supportsMainLightShadowsText = EditorGUIUtility.TrTextContent("Cast Shadows", "If enabled the main light can be a shadow casting light.");

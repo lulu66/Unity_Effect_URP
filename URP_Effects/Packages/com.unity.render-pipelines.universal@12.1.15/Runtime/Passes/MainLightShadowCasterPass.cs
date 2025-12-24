@@ -34,7 +34,11 @@ namespace UnityEngine.Rendering.Universal.Internal
         internal RenderTexture m_MainLightShadowmapTexture;
 
         Matrix4x4[] m_MainLightShadowMatrices;
+
+        // 存储阴影在级联阴影图集的转换矩阵
         ShadowSliceData[] m_CascadeSlices;
+
+        // 存储级联阴影中每个层级的culling sphere位置和半径
         Vector4[] m_CascadeSplitDistances;
 
         bool m_CreateEmptyShadowmap;
@@ -70,59 +74,51 @@ namespace UnityEngine.Rendering.Universal.Internal
         {
             using var profScope = new ProfilingScope(null, m_ProfilingSetupSampler);
 
-            // 如果不支持主光源阴影的话，则看shader是否剔除了阴影相关的变体，如果剔除了，则创建1x1的空shadowmap纹理，返回true;否则返回false;
             if (!renderingData.shadowData.supportsMainLightShadows)
                 return SetupForEmptyRendering(ref renderingData);
 
-            // 如果支持主光源纹理...接着看
-
-            // 重置阴影相关的数据
+            // 清空阴影相关的数据：阴影矩阵...
             Clear();
-            // 找到主光源，如果没有，则看shader是否剔除了阴影相关的变体，如果剔除了，则创建1x1的空shadowmap纹理，返回true;否则返回false;
+
             int shadowLightIndex = renderingData.lightData.mainLightIndex;
             if (shadowLightIndex == -1)
                 return SetupForEmptyRendering(ref renderingData);
 
-            // 如果有主光源...接着看
-
             // 获取主光源
             VisibleLight shadowLight = renderingData.lightData.visibleLights[shadowLightIndex];
             Light light = shadowLight.light;
-            // 如果主灯光不支持阴影，则看shader是否剔除了阴影相关的变体，如果剔除了，则创建1x1的空shadowmap纹理，返回true;否则返回false;
+
             if (light.shadows == LightShadows.None)
                 return SetupForEmptyRendering(ref renderingData);
 
-            // 如果主光源支持阴影，但不是方向光，则发出警告
             if (shadowLight.lightType != LightType.Directional)
             {
                 Debug.LogWarning("Only directional lights are supported as main light.");
             }
 
-            // 如果主光源支持阴影，且是方向光...接着看
-
-            // 获取shadowcaster的包围盒，如果包围盒为空，则看shader是否剔除了阴影相关的变体，如果剔除了，则创建1x1的空shadowmap纹理，返回true;否则返回false;
+            // 这里的bounds不是指物体的包围盒，而是为光源计算的，所有需要投射阴影的物体所分布的空间区域；
+            // 如果渲染的物体不在这个包围盒内，则不创建阴影纹理
             Bounds bounds;
             if (!renderingData.cullResults.GetShadowCasterBounds(shadowLightIndex, out bounds))
                 return SetupForEmptyRendering(ref renderingData);
 
-            // shadowcaster包围盒不为空...接着看
-
             // 获取级联阴影的级数
             m_ShadowCasterCascadesCount = renderingData.shadowData.mainLightShadowCascadesCount;
 
-            // 根据阴影图集的总大小和Tile的排列方式，计算单个Tile能够使用的最大分辨率
+            // 计算级联阴影图集中单个Tile能够使用的最大分辨率
             int shadowResolution = ShadowUtils.GetMaxTileResolutionInAtlas(renderingData.shadowData.mainLightShadowmapWidth,
                 renderingData.shadowData.mainLightShadowmapHeight, m_ShadowCasterCascadesCount);
 
-            // shadowmap的宽和高
+            // 级联阴影图集的宽和高。这里涉及urp的阴影图集的布局策略：
+            // URP对主光源的级联阴影图集采用了一种“垂直堆叠”的布局方式，并且预设了最大级联数为4。当级联数为2时，它使用了一种特殊的“并排”布局来优化空间，而级联数为3和4时，则回归到简单的垂直堆叠。
             renderTargetWidth = renderingData.shadowData.mainLightShadowmapWidth;
             renderTargetHeight = (m_ShadowCasterCascadesCount == 2) ?
                 renderingData.shadowData.mainLightShadowmapHeight >> 1 :
                 renderingData.shadowData.mainLightShadowmapHeight;
 
-            // 计算方向光的阴影矩阵，如果返回失败，则看shader是否剔除了阴影相关的变体，如果剔除了，则创建1x1的空shadowmap纹理，返回true;否则返回false;
             for (int cascadeIndex = 0; cascadeIndex < m_ShadowCasterCascadesCount; ++cascadeIndex)
             {
+                // 获取级联阴影每个层级的阴影位置和变换矩阵
                 bool success = ShadowUtils.ExtractDirectionalLightMatrix(ref renderingData.cullResults, ref renderingData.shadowData,
                     shadowLightIndex, cascadeIndex, renderTargetWidth, renderTargetHeight, shadowResolution, light.shadowNearPlane,
                     out m_CascadeSplitDistances[cascadeIndex], out m_CascadeSlices[cascadeIndex]);
@@ -131,13 +127,13 @@ namespace UnityEngine.Rendering.Universal.Internal
                     return SetupForEmptyRendering(ref renderingData);
             }
 
-            // 分配阴影纹理
+            // 创建级联阴影图集
             m_MainLightShadowmapTexture = ShadowUtils.GetTemporaryShadowTexture(renderTargetWidth, renderTargetHeight, k_ShadowmapBufferBits);
 
             // 计算最大阴影距离的平方
             m_MaxShadowDistanceSq = renderingData.cameraData.maxShadowDistance * renderingData.cameraData.maxShadowDistance;
 
-            // 定义了阴影级联之间的过渡区域大小，用于平滑不同级联级别之间的切换，避免明显的阴影"跳跃"或" popping"现象
+            // 定义了阴影级联之间的过渡区域大小，用于平滑不同级联级别之间的切换，避免明显的阴影"跳跃"现象
             m_CascadeBorder = renderingData.shadowData.mainLightShadowCascadeBorder;
             m_CreateEmptyShadowmap = false;
             useNativeRenderPass = true;
@@ -146,7 +142,7 @@ namespace UnityEngine.Rendering.Universal.Internal
         }
 
         /// <summary>
-        /// 是否需要创建一个空的shadowmap纹理，如果shader剔除了阴影相关变体，则创建空纹理
+        /// 判断是否创建空纹理(1x1的shadowmap)，返回true表示创建；返回false表示不创建
         /// </summary>
         /// <param name="renderingData"></param>
         /// <returns></returns>
@@ -226,6 +222,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             if (shadowLightIndex == -1)
                 return;
 
+            // 获取主光源
             VisibleLight shadowLight = lightData.visibleLights[shadowLightIndex];
 
             // NOTE: Do NOT mix ProfilingScope with named CommandBuffers i.e. CommandBufferPool.Get("name").
@@ -233,23 +230,35 @@ namespace UnityEngine.Rendering.Universal.Internal
             CommandBuffer cmd = CommandBufferPool.Get();
             using (new ProfilingScope(cmd, ProfilingSampler.Get(URPProfileId.MainLightShadow)))
             {
+                // 设置哪些灯光层可以产生阴影
                 var settings = new ShadowDrawingSettings(cullResults, shadowLightIndex);
                 settings.useRenderingLayerMaskTest = UniversalRenderPipeline.asset.supportsLightLayers;
 
+                // 对于每一级阴影
                 for (int cascadeIndex = 0; cascadeIndex < m_ShadowCasterCascadesCount; ++cascadeIndex)
                 {
                     settings.splitData = m_CascadeSlices[cascadeIndex].splitData;
 
+                    // 计算阴影的深度偏移和法线偏移，存储于x和y分量中
                     Vector4 shadowBias = ShadowUtils.GetShadowBias(ref shadowLight, shadowLightIndex, ref shadowData, m_CascadeSlices[cascadeIndex].projectionMatrix, m_CascadeSlices[cascadeIndex].resolution);
+                    // 设置shader阴影的偏移、光照方向、光源位置
                     ShadowUtils.SetupShadowCasterConstantBuffer(cmd, ref shadowLight, shadowBias);
+                    // 关闭关键字：_CASTING_PUNCTUAL_LIGHT_SHADOW
                     CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.CastingPunctualLightShadow, false);
+                    // 渲染阴影
                     ShadowUtils.RenderShadowSlice(cmd, ref context, ref m_CascadeSlices[cascadeIndex],
                         ref settings, m_CascadeSlices[cascadeIndex].projectionMatrix, m_CascadeSlices[cascadeIndex].viewMatrix);
                 }
 
                 shadowData.isKeywordSoftShadowsEnabled = shadowLight.light.shadows == LightShadows.Soft && shadowData.supportsSoftShadows;
+
+                // 非级联阴影，开启关键字：_MAIN_LIGHT_SHADOWS
                 CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.MainLightShadows, shadowData.mainLightShadowCascadesCount == 1);
+
+                // 级联阴影，开启关键字：_MAIN_LIGHT_SHADOWS_CASCADE
                 CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.MainLightShadowCascades, shadowData.mainLightShadowCascadesCount > 1);
+
+                // 软阴影，开启关键字：_SHADOWS_SOFT
                 CoreUtils.SetKeyword(cmd, ShaderKeywordStrings.SoftShadows, shadowData.isKeywordSoftShadowsEnabled);
 
                 SetupMainLightShadowReceiverConstants(cmd, shadowLight, shadowData.supportsSoftShadows);
@@ -259,6 +268,12 @@ namespace UnityEngine.Rendering.Universal.Internal
             CommandBufferPool.Release(cmd);
         }
 
+        /// <summary>
+        /// 设置级联阴影 shader需要使用的参数
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="shadowLight"></param>
+        /// <param name="supportsSoftShadows"></param>
         void SetupMainLightShadowReceiverConstants(CommandBuffer cmd, VisibleLight shadowLight, bool supportsSoftShadows)
         {
             Light light = shadowLight.light;
@@ -271,6 +286,8 @@ namespace UnityEngine.Rendering.Universal.Internal
             // We setup and additional a no-op WorldToShadow matrix in the last index
             // because the ComputeCascadeIndex function in Shadows.hlsl can return an index
             // out of bounds. (position not inside any cascade) and we want to avoid branching
+
+            // 将未使用的级联阴影矩阵槽位填充无操作的单位矩阵，防止shader中访问未初始化的数据产生错误的阴影计算
             Matrix4x4 noOpShadowMatrix = Matrix4x4.zero;
             noOpShadowMatrix.m22 = (SystemInfo.usesReversedZBuffer) ? 1.0f : 0.0f;
             for (int i = cascadeCount; i <= k_MaxCascades; ++i)

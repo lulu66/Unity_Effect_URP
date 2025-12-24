@@ -39,6 +39,7 @@ namespace UnityEngine.Rendering.Universal
             rtid = renderTargetIdentifier;
         }
 
+        // -1：内置屏幕；-2:自定义rt
         public RenderTargetIdentifier Identifier()
         {
             if (id == -1)

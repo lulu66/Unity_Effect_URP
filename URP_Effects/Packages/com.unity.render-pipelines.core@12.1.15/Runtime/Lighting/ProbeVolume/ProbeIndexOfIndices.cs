@@ -12,8 +12,10 @@ namespace UnityEngine.Experimental.Rendering
     internal class ProbeCellIndices
     {
         const int kUintPerEntry = 3;
+        // 内存消耗
         internal int estimatedVMemCost { get; private set; }
 
+        // 将cell的索引编码为固定大小的数据块，便于存储和传输到GPU
         internal struct IndexMetaData
         {
             internal Vector3Int minLocalIdx;
@@ -21,6 +23,11 @@ namespace UnityEngine.Experimental.Rendering
             internal int firstChunkIndex;
             internal int minSubdiv;
 
+            /// <summary>
+            /// 
+            /// 将上述4个Info数据打包到3个uint当中，以便节省内存
+            /// </summary>
+            /// <param name="vals"></param>
             internal void Pack(out uint[] vals)
             {
                 vals = new uint[kUintPerEntry];
@@ -57,10 +64,13 @@ namespace UnityEngine.Experimental.Rendering
             }
         }
 
+        // 这两个配对出现，把打包的cellIndex信息拉成1维，每3个uint为一组，便于在CPU和GPU端传输
         ComputeBuffer m_IndexOfIndicesBuffer;
         uint[] m_IndexOfIndicesData;
 
+        // probe volume每个维度的cell数量
         Vector3Int m_CellCount;
+        // probe volume中最小的cell的3D索引
         Vector3Int m_CellMin;
         int m_CellSizeInMinBricks;
 
@@ -82,6 +92,7 @@ namespace UnityEngine.Experimental.Rendering
             m_CellSizeInMinBricks = cellSizeInMinBricks;
             int flatCellCount = cellCount.x * cellCount.y * cellCount.z;
             flatCellCount = flatCellCount == 0 ? 1 : flatCellCount;
+            // 每个cell的信息打包在3个uint类型数据中，bufferSize = 3 * cell的个数
             int bufferSize = kUintPerEntry * flatCellCount;
             m_IndexOfIndicesBuffer = new ComputeBuffer(flatCellCount, kUintPerEntry * sizeof(uint));
             m_IndexOfIndicesData = new uint[bufferSize];
@@ -97,8 +108,14 @@ namespace UnityEngine.Experimental.Rendering
             return GetFlatIndex(normalizedPos);
         }
 
+        /// <summary>
+        /// 添加一个cell,将cell信息打包后存入数组中，供GPU使用
+        /// </summary>
+        /// <param name="cellFlatIdx"></param>
+        /// <param name="cellUpdateInfo"></param>
         internal void AddCell(int cellFlatIdx, ProbeBrickIndex.CellIndexUpdateInfo cellUpdateInfo)
         {
+            // probe volume中一个维度上cell的个数
             int minSubdivCellSize = ProbeReferenceVolume.CellSize(cellUpdateInfo.minSubdivInCell);
             IndexMetaData metaData = new IndexMetaData();
             metaData.minSubdiv = cellUpdateInfo.minSubdivInCell;
@@ -116,6 +133,10 @@ namespace UnityEngine.Experimental.Rendering
             m_NeedUpdateComputeBuffer = true;
         }
 
+        /// <summary>
+        /// 标记一个cell即将被卸载
+        /// </summary>
+        /// <param name="cellFlatIdx"></param>
         internal void MarkCellAsUnloaded(int cellFlatIdx)
         {
             for (int i = 0; i < kUintPerEntry; ++i)
@@ -125,7 +146,9 @@ namespace UnityEngine.Experimental.Rendering
 
             m_NeedUpdateComputeBuffer = true;
         }
-
+        /// <summary>
+        /// cell信息传递到GPU
+        /// </summary>
         internal void PushComputeData()
         {
             m_IndexOfIndicesBuffer.SetData(m_IndexOfIndicesData);

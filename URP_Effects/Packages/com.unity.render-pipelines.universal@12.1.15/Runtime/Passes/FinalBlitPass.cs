@@ -48,6 +48,7 @@ namespace UnityEngine.Rendering.Universal.Internal
             bool isSceneViewCamera = cameraData.isSceneViewCamera;
             CommandBuffer cmd = CommandBufferPool.Get();
 
+            // source为当前帧的图像，非上一帧的图像
             if (m_Source == cameraData.renderer.GetCameraColorFrontBuffer(cmd))
             {
                 m_Source = renderingData.cameraData.renderer.cameraColorTarget;

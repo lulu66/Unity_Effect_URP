@@ -163,6 +163,18 @@ namespace UnityEditor.Rendering.Universal
 
                 --EditorGUI.indentLevel;
             }
+            // -----------------GAUSSF START------------------------
+            if(serialized.asset.upscalingFilter == UpscalingFilterSelection.GAUSSF)
+			{
+                ++EditorGUI.indentLevel;
+                EditorGUILayout.IntSlider(serialized.gaussfQualityLevel, 0, 2, Styles.gaussfQualityLevel);
+                if (serialized.gaussfQualityLevel.intValue == 0)
+                {
+                    serialized.gaussfSharpness.floatValue = EditorGUILayout.Slider(Styles.gaussfSharpnessText, serialized.gaussfSharpness.floatValue, 0.01f, 1.0f);
+                }
+                --EditorGUI.indentLevel;
+			}
+            // ----------------GAUSSF END-------------------------------
         }
 
         static void DrawLighting(SerializedUniversalRenderPipelineAsset serialized, Editor ownerEditor)

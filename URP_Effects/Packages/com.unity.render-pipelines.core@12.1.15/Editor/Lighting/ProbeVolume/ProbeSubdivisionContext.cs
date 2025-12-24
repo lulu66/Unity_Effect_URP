@@ -129,22 +129,31 @@ namespace UnityEngine.Experimental.Rendering
             }
         }
 
+        // 一个probe volume对应一个volume
         public List<(ProbeVolume component, ProbeReferenceVolume.Volume volume)> probeVolumes = new List<(ProbeVolume, ProbeReferenceVolume.Volume)>();
+        // 一个renderer对应一个volume
         public List<(Renderer component, ProbeReferenceVolume.Volume volume)> renderers = new List<(Renderer, ProbeReferenceVolume.Volume)>();
+        // 一个cell对应一个volume
         public List<(Vector3Int position, ProbeReferenceVolume.Volume volume)> cells = new List<(Vector3Int, ProbeReferenceVolume.Volume)>();
         public List<(Terrain, ProbeReferenceVolume.Volume volume)> terrains = new List<(Terrain, ProbeReferenceVolume.Volume)>();
         public ProbeReferenceVolumeProfile profile;
 
+        /// <summary>
+        /// 将场景中probe volume切割为cell，记录每个cell的位置和cell的volume
+        /// </summary>
+        /// <param name="profile"></param>
+        /// <param name="refVolOrigin"></param>
         public void Initialize(ProbeReferenceVolumeProfile profile, Vector3 refVolOrigin)
         {
             this.profile = profile;
+            // cell的边长
             float cellSize = profile.cellSizeInMeters;
 
             foreach (var pv in UnityEngine.Object.FindObjectsOfType<ProbeVolume>())
             {
                 if (!pv.isActiveAndEnabled)
                     continue;
-
+                // 将probevolume转换为volume，构建probevolume和volume的字典结构
                 ProbeReferenceVolume.Volume volume = new ProbeReferenceVolume.Volume(Matrix4x4.TRS(pv.transform.position, pv.transform.rotation, pv.GetExtents()), pv.GetMaxSubdivMultiplier(), pv.GetMinSubdivMultiplier());
                 probeVolumes.Add((pv, volume));
             }
@@ -160,6 +169,7 @@ namespace UnityEngine.Experimental.Rendering
                     continue;
 
                 // Inflate a bit the volume in case it's too small (plane case)
+                // 将ContributeGI的render对象转换为一个volume
                 var volume = ProbePlacement.ToVolume(new Bounds(r.bounds.center, r.bounds.size + Vector3.one * 0.01f));
 
                 renderers.Add((r, volume));
@@ -182,12 +192,16 @@ namespace UnityEngine.Experimental.Rendering
             {
                 var probeVolume = pv.component;
                 var halfSize = probeVolume.size / 2.0f;
+                // 以cell为单位的最小position
                 var minCellPosition = (probeVolume.transform.position - halfSize) / cellSize;
+                // 以cell为单位的最大position
                 var maxCellPosition = (probeVolume.transform.position + halfSize) / cellSize;
 
+                // probe volume的最小和最大整数3D索引
                 Vector3Int min = new Vector3Int(Mathf.FloorToInt(minCellPosition.x), Mathf.FloorToInt(minCellPosition.y), Mathf.FloorToInt(minCellPosition.z));
                 Vector3Int max = new Vector3Int(Mathf.CeilToInt(maxCellPosition.x), Mathf.CeilToInt(maxCellPosition.y), Mathf.CeilToInt(maxCellPosition.z));
 
+                // 添加probe volume所占据的cell的位置和对应的volume
                 for (int x = min.x; x < max.x; x++)
                 {
                     for (int y = min.y; y < max.y; y++)

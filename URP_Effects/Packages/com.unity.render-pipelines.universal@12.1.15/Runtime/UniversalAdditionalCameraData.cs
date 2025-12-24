@@ -42,6 +42,8 @@ namespace UnityEngine.Rendering.Universal
         [InspectorName("Subpixel Morphological Anti-aliasing (SMAA)")]
         SubpixelMorphologicalAntiAliasing,
         //TemporalAntialiasing
+        [InspectorName("Temporal Antialiasing (TAA)")]
+        TemporalAntialiasing
     }
 
     /// <summary>
@@ -136,6 +138,7 @@ namespace UnityEngine.Rendering.Universal
         /// Updates the volume stack for this camera.
         /// This function will only update the stack when the camera has ViaScripting selected or if
         /// the camera is set to UsePipelineSettings and the Render Pipeline Asset is set to ViaScripting.
+        /// 如果有volume stack，则从对象池中拿一个stack,如果没有则创建一个，然后更新volume stack上对应layermask的volume的参数
         /// </summary>
         /// <param name="camera"></param>
         /// <param name="cameraData"></param>
@@ -181,6 +184,7 @@ namespace UnityEngine.Rendering.Universal
 
         /// <summary>
         /// Returns the mask and trigger assigned for volumes on the camera.
+        /// 返回本相机上的volume的layermask和触发器
         /// </summary>
         /// <param name="camera"></param>
         /// <param name="cameraData"></param>
@@ -190,8 +194,11 @@ namespace UnityEngine.Rendering.Universal
         {
             // Default values when there's no additional camera data available
             layerMask = 1; // "Default"
+
+            // 默认触发器为相机的transform
             trigger = camera.transform;
 
+            // 如果camera data中的触发器为空，则使用默认触发器，否则使用camera data中的触发器
             if (cameraData != null)
             {
                 layerMask = cameraData.volumeLayerMask;

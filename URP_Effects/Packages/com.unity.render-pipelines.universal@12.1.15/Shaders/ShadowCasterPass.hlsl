@@ -34,7 +34,7 @@ float4 GetShadowPositionHClip(Attributes input)
 #else
     float3 lightDirectionWS = _LightDirection;
 #endif
-
+    // postionCS的摄像机视角是在光源处的视角
     float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
 
 #if UNITY_REVERSED_Z

@@ -7,6 +7,7 @@ namespace UnityEngine.Experimental.Rendering
 {
     /// <summary>
     /// An Asset which holds a set of settings to use with a <see cref="Probe Reference Volume"/>.
+    /// Probe Volume系统的“质量配置文件”,定义了Probe Volume的渲染质量和性能参数
     /// </summary>
     public sealed class ProbeReferenceVolumeProfile : ScriptableObject
     {
@@ -26,6 +27,7 @@ namespace UnityEngine.Experimental.Rendering
 
         /// <summary>
         /// The size of a Cell in number of bricks.
+        /// 一个cell单元单个维度上bricks的个数
         /// </summary>
         public int cellSizeInBricks => (int)Mathf.Pow(3, simplificationLevels);
 
@@ -42,11 +44,13 @@ namespace UnityEngine.Experimental.Rendering
 
         /// <summary>
         /// Minimum size of a brick in meters.
+        /// 一个brick的最小边长（以米为单位）
         /// </summary>
         public float minBrickSize => Mathf.Max(0.01f, minDistanceBetweenProbes * 3.0f);
 
         /// <summary>
         /// Size of the cell in meters.
+        /// 一个cell单元的边长
         /// </summary>
         public float cellSizeInMeters => (float)cellSizeInBricks * minBrickSize;
 

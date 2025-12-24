@@ -21,6 +21,11 @@ namespace UnityEditor.Rendering.Universal
         public SerializedProperty fsrOverrideSharpness { get; }
         public SerializedProperty fsrSharpness { get; }
 
+        // --------------------GAUSSF START-----------------------
+        public SerializedProperty gaussfSharpness { get; }
+        public SerializedProperty gaussfQualityLevel { get; }
+        // --------------------GAUSSF END-------------------------
+
         public SerializedProperty mainLightRenderingModeProp { get; }
         public SerializedProperty mainLightShadowsSupportedProp { get; }
         public SerializedProperty mainLightShadowmapResolutionProp { get; }
@@ -88,6 +93,11 @@ namespace UnityEditor.Rendering.Universal
             upscalingFilter = serializedObject.FindProperty("m_UpscalingFilter");
             fsrOverrideSharpness = serializedObject.FindProperty("m_FsrOverrideSharpness");
             fsrSharpness = serializedObject.FindProperty("m_FsrSharpness");
+
+            // --------------------GAUSSF START-----------------------
+            gaussfSharpness = serializedObject.FindProperty("m_GaussfSharpness");
+            gaussfQualityLevel = serializedObject.FindProperty("m_GaussfQualityLevel");
+            // --------------------GAUSSF END-----------------------
 
             mainLightRenderingModeProp = serializedObject.FindProperty("m_MainLightRenderingMode");
             mainLightShadowsSupportedProp = serializedObject.FindProperty("m_MainLightShadowsSupported");

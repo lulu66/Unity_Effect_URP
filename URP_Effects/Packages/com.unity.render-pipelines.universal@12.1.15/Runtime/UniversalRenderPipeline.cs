@@ -484,6 +484,7 @@ namespace UnityEngine.Rendering.Universal
             bool supportsCameraStacking = renderer != null && renderer.SupportsCameraStackingType(CameraRenderType.Base);
             List<Camera> cameraStack = (supportsCameraStacking) ? baseCameraAdditionalData?.cameraStack : null;
 
+            // 相机是否开启后处理
             bool anyPostProcessingEnabled = baseCameraAdditionalData != null && baseCameraAdditionalData.renderPostProcessing;
 
             // We need to know the last active camera in the stack to be able to resolve
@@ -622,6 +623,7 @@ namespace UnityEngine.Rendering.Universal
                     {
                         // Copy base settings from base camera data and initialize initialize remaining specific settings for this camera type.
                         CameraData overlayCameraData = baseCameraData;
+                        // 判断当前相机是否是最后一个相机
                         bool lastCamera = i == lastActiveOverlayCameraIndex;
 
 #if ENABLE_VR && ENABLE_XR_MODULE
@@ -866,17 +868,19 @@ namespace UnityEngine.Rendering.Universal
             cameraData.renderScale = (Mathf.Abs(1.0f - settings.renderScale) < kRenderScaleThreshold) ? 1.0f : settings.renderScale;
 
             // Convert the upscaling filter selection from the pipeline asset into an image upscaling filter
+            // 选择超分算法
             cameraData.upscalingFilter = ResolveUpscalingFilterSelection(new Vector2(cameraData.pixelWidth, cameraData.pixelHeight), cameraData.renderScale, settings.upscalingFilter);
 
             if (cameraData.renderScale > 1.0f)
             {
+                // 当renderscale > 1 自动选择降分辨率算法
                 cameraData.imageScalingMode = ImageScalingMode.Downscaling;
             }
-            else if ((cameraData.renderScale < 1.0f) || (cameraData.upscalingFilter == ImageUpscalingFilter.FSR))
+            else if ((cameraData.renderScale < 1.0f) || (cameraData.upscalingFilter == ImageUpscalingFilter.FSR) || (cameraData.upscalingFilter == ImageUpscalingFilter.GAUSSF))
             {
                 // When FSR is enabled, we still consider 100% render scale an upscaling operation.
                 // This allows us to run the FSR shader passes all the time since they improve visual quality even at 100% scale.
-
+                // 当renderScale < 1 自动选择选择超分方案
                 cameraData.imageScalingMode = ImageScalingMode.Upscaling;
             }
             else
@@ -886,6 +890,11 @@ namespace UnityEngine.Rendering.Universal
 
             cameraData.fsrOverrideSharpness = settings.fsrOverrideSharpness;
             cameraData.fsrSharpness = settings.fsrSharpness;
+
+            // -------------------GAUSSF START -------------------
+            cameraData.gaussfSharpness = settings.gaussfSharpness;
+            cameraData.gaussfQualityLevel = settings.gaussfQualityLevel;
+            // -------------------GAUSSF END ---------------------
 
 #if ENABLE_VR && ENABLE_XR_MODULE
             cameraData.xr = m_XRSystem.emptyPass;
@@ -1315,6 +1324,7 @@ namespace UnityEngine.Rendering.Universal
 
         /// <summary>
         /// Returns the best supported image upscaling filter based on the provided upscaling filter selection
+        /// 返回受支持的超分算法
         /// </summary>
         /// <param name="imageSize">Size of the final image</param>
         /// <param name="renderScale">Scale being applied to the final image size</param>
@@ -1326,11 +1336,17 @@ namespace UnityEngine.Rendering.Universal
             ImageUpscalingFilter filter = ImageUpscalingFilter.Linear;
 
             // Fall back to the automatic filter if FSR was selected, but isn't supported on the current platform
+            // 如果FSR不受支持，选择自动的超分方法
             if ((selection == UpscalingFilterSelection.FSR) && !FSRUtils.IsSupported())
             {
                 selection = UpscalingFilterSelection.Auto;
             }
-
+            // 如果选择了Gaussf方案但不是支持，退化到Auto方法
+            if(selection == UpscalingFilterSelection.GAUSSF && !GAUSSFUtils.IsSupported())
+			{
+                selection = UpscalingFilterSelection.Auto;
+			}
+                
             switch (selection)
             {
                 case UpscalingFilterSelection.Auto:
@@ -1378,6 +1394,11 @@ namespace UnityEngine.Rendering.Universal
 
                     break;
                 }
+                case UpscalingFilterSelection.GAUSSF:
+				{
+                    filter = ImageUpscalingFilter.GAUSSF;
+                    break;
+				}
             }
 
             return filter;

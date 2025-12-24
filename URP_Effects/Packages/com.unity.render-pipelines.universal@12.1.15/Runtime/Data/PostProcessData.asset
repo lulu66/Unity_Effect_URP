@@ -25,8 +25,11 @@ MonoBehaviour:
     LensFlareDataDrivenPS: {fileID: 4800000, guid: 6cda457ac28612740adb23da5d39ea92, type: 3}
     scalingSetupPS: {fileID: 4800000, guid: e8ee25143a34b8c4388709ea947055d1, type: 3}
     easuPS: {fileID: 4800000, guid: 562b7ae4f629f144aa97780546fce7c6, type: 3}
+    gaussfUpscalerPS: {fileID: 4800000, guid: df9a0142708269c46ba1e9113c1a65ff, type: 3}
+    gaussfUpscalerCS: {fileID: 7200000, guid: cb0912e3bab3ae643be9821e0d85f441, type: 3}
     uberPostPS: {fileID: 4800000, guid: e7857e9d0c934dc4f83f270f8447b006, type: 3}
     finalPostPassPS: {fileID: 4800000, guid: c49e63ed1bbcb334780a3bd19dfed403, type: 3}
+    taaCustomPS: {fileID: 4800000, guid: 76136a82b338ed34bb6ce524aab80014, type: 3}
   textures:
     blueNoise16LTex:
     - {fileID: 2800000, guid: 81200413a40918d4d8702e94db29911c, type: 3}

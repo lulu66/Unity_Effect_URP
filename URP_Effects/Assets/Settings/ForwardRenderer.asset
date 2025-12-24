@@ -25,7 +25,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a560a4ab32131184dadde6e35636a2d2, type: 3}
   m_Name: Fluid2DRenderFeature
   m_EditorClassIdentifier: 
-  m_Active: 0
+  m_Active: 1
   settings:
     Resolution: 256
     Dissipation: {x: 0, y: 0, z: 0, w: 0}
@@ -52,7 +52,8 @@ MonoBehaviour:
   - {fileID: -2113575328841915641}
   - {fileID: 8326333827607975758}
   - {fileID: 7901248014627410780}
-  m_RendererFeatureMap: 14df7ba484a9fcbcfe0d58fd5d64b024072359c66f12abe24e57e45b80148d735c9320ea34dfa66d
+  - {fileID: 8963747804641085591}
+  m_RendererFeatureMap: 14df7ba484a9fcbcfe0d58fd5d64b024072359c66f12abe24e57e45b80148d735c9320ea34dfa66d97c8d1e722a1657c
   m_UseNativeRenderPass: 0
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   xrSystemData: {fileID: 11400000, guid: 60e1133243b97e347b653163a8c01b64, type: 2}
@@ -121,7 +122,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1614fc811f8f184697d9bee70ab9fe5, type: 3}
   m_Name: DecalRendererFeature
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   m_Settings:
     technique: 2
     maxDrawDistance: 1000
@@ -144,5 +145,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e32e72b6a3f58a24c9033e2b9275eea0, type: 3}
   m_Name: ScreenSpaceShadows
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   m_Shader: {fileID: 4800000, guid: 0f854b35a0cf61a429bd5dcfea30eddd, type: 3}
+--- !u!114 &8963747804641085591
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5495f09a19ba864e961d11903d4c606, type: 3}
+  m_Name: TAA
+  m_EditorClassIdentifier: 
+  m_Active: 0

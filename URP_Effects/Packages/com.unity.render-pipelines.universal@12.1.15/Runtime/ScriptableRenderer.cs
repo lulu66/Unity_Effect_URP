@@ -463,6 +463,7 @@ namespace UnityEngine.Rendering.Universal
         RenderTargetIdentifier m_CameraDepthTarget;
         RenderTargetIdentifier m_CameraResolveTarget;
 
+        // 用于追踪相机颜色目标是否是首次被绑定到渲染管线，主要作用：1）避免重复绑定相同渲染目标；2）渲染多相机时，只有实际需要时才切换渲染目标；3）减少GPU状态切换开销；
         bool m_FirstTimeCameraColorTargetIsBound = true; // flag used to track when m_CameraColorTarget should be cleared (if necessary), as well as other special actions only performed the first time m_CameraColorTarget is bound as a render target
         bool m_FirstTimeCameraDepthTargetIsBound = true; // flag used to track when m_CameraDepthTarget should be cleared (if necessary), the first time m_CameraDepthTarget is bound as a render target
 
@@ -478,7 +479,9 @@ namespace UnityEngine.Rendering.Universal
 
         // 是否使用现代的，更崚货的RenderPass系统来执行渲染，而不是传统的渲染路径
         internal bool useRenderPassEnabled = false;
+        // 管理多渲染目标，跟踪当前绑定到管线的所有颜色附件
         static RenderTargetIdentifier[] m_ActiveColorAttachments = new RenderTargetIdentifier[] { 0, 0, 0, 0, 0, 0, 0, 0 };
+        // 跟踪当前绑定到管线的所有深度附件
         static RenderTargetIdentifier m_ActiveDepthAttachment;
 
         private static RenderBufferStoreAction[] m_ActiveColorStoreActions = new RenderBufferStoreAction[]
@@ -493,6 +496,7 @@ namespace UnityEngine.Rendering.Universal
         // called from CoreUtils.SetRenderTarget will issue a warning assert from native c++ side if "colors" array contains some invalid RTIDs.
         // To avoid that warning assert we trim the RenderTargetIdentifier[] arrays we pass to CoreUtils.SetRenderTarget.
         // To avoid re-allocating a new array every time we do that, we re-use one of these arrays:
+        // 性能优化数据结构，主要用于管理渲染目标的复制和复用，避免不必要的内存分配和拷贝操作
         static RenderTargetIdentifier[][] m_TrimmedColorAttachmentCopies = new RenderTargetIdentifier[][]
         {
             new RenderTargetIdentifier[0],                          // m_TrimmedColorAttachmentCopies[0] is an array of 0 RenderTargetIdentifier - only used to make indexing code easier to read
@@ -509,6 +513,7 @@ namespace UnityEngine.Rendering.Universal
         private static Plane[] s_Planes = new Plane[6];
         private static Vector4[] s_VectorPlanes = new Vector4[6];
 
+        // 配置当前的活跃渲染目标color target和depth target
         internal static void ConfigureActiveTarget(RenderTargetIdentifier colorAttachment,
             RenderTargetIdentifier depthAttachment)
         {
@@ -533,6 +538,7 @@ namespace UnityEngine.Rendering.Universal
 
             profilingExecute = new ProfilingSampler($"{nameof(ScriptableRenderer)}.{nameof(ScriptableRenderer.Execute)}: {data.name}");
 
+            // 填充自定义feature列表
             foreach (var feature in data.rendererFeatures)
             {
                 if (feature == null)
@@ -843,6 +849,7 @@ namespace UnityEngine.Rendering.Universal
 
             // Overlay cameras composite on top of previous ones. They don't clear color.
             // For overlay cameras we check if depth should be cleared on not.
+            // overlay相机只清理depth和stencil
             if (cameraData.renderType == CameraRenderType.Overlay)
                 return (cameraData.clearDepth) ? ClearFlag.DepthStencil : ClearFlag.None;
 
@@ -1044,12 +1051,14 @@ namespace UnityEngine.Rendering.Universal
         /// <param name="cameraData"></param>
         void SetRenderPassAttachments(CommandBuffer cmd, ScriptableRenderPass renderPass, ref CameraData cameraData)
         {
+            // 相机和相机的清理标记
             Camera camera = cameraData.camera;
             ClearFlag cameraClearFlag = GetCameraClearFlag(ref cameraData);
 
             // Invalid configuration - use current attachment setup
             // Note: we only check color buffers. This is only technically correct because for shadowmaps and depth only passes
             // we bind depth as color and Unity handles it underneath. so we never have a situation that all color buffers are null and depth is bound.
+            // 有效的buffer数量
             uint validColorBuffersCount = RenderingUtils.GetValidColorBufferCount(renderPass.colorAttachments);
             if (validColorBuffersCount == 0)
                 return;
@@ -1066,7 +1075,9 @@ namespace UnityEngine.Rendering.Universal
                 bool needCustomCameraColorClear = false;
                 bool needCustomCameraDepthClear = false;
 
+                // 有效的渲染目标索引
                 int cameraColorTargetIndex = RenderingUtils.IndexOf(renderPass.colorAttachments, m_CameraColorTarget);
+                // 如果相机渲染目标有效，且是第一次绑定到相机，那么是否要使用自定义颜色清理相机得根据renderpass的clear标记决定
                 if (cameraColorTargetIndex != -1 && (m_FirstTimeCameraColorTargetIsBound))
                 {
                     m_FirstTimeCameraColorTargetIsBound = false; // register that we did clear the camera target the first time it was bound
@@ -1088,6 +1099,7 @@ namespace UnityEngine.Rendering.Universal
                 // { ...
                 // }
 
+                // 如果render pass的深度附件就是相机的深度渲染目标，且是第一次绑定到相机，是否要清理深度也要考虑render pass的clear标记
                 if (renderPass.depthAttachment == m_CameraDepthTarget && m_FirstTimeCameraDepthTargetIsBound)
                 {
                     m_FirstTimeCameraDepthTargetIsBound = false;
@@ -1098,19 +1110,22 @@ namespace UnityEngine.Rendering.Universal
                 // We try to minimize calls to SetRenderTarget().
 
                 // We get here only if cameraColorTarget needs to be handled separately from the rest of the color attachments.
+                // 如果需要用自定义相机颜色清理
                 if (needCustomCameraColorClear)
                 {
                     // Clear camera color render-target separately from the rest of the render-targets.
 
+                    // 首先绑定相机渲染目标
                     if ((cameraClearFlag & ClearFlag.Color) != 0 && (!IsRenderPassEnabled(renderPass) || !cameraData.isRenderPassSupportedCamera))
                         SetRenderTarget(cmd, renderPass.colorAttachments[cameraColorTargetIndex], renderPass.depthAttachment, ClearFlag.Color, CoreUtils.ConvertSRGBToActiveColorSpace(camera.backgroundColor));
 
+                    // 再绑定非相机渲染目标
                     if ((renderPass.clearFlag & ClearFlag.Color) != 0)
                     {
                         // 非m_CameraColorTarget的有效rt的数量
                         uint otherTargetsCount = RenderingUtils.CountDistinct(renderPass.colorAttachments, m_CameraColorTarget);
                         var nonCameraAttachments = m_TrimmedColorAttachmentCopies[otherTargetsCount];
-                        // 获取没有绑定相机的rt的数组
+                        // 获取非相机渲染目标的其它rt的数组
                         int writeIndex = 0;
                         for (int readIndex = 0; readIndex < renderPass.colorAttachments.Length; ++readIndex)
                         {
@@ -1123,6 +1138,7 @@ namespace UnityEngine.Rendering.Universal
 
                         if (writeIndex != otherTargetsCount)
                             Debug.LogError("writeIndex and otherTargetsCount values differed. writeIndex:" + writeIndex + " otherTargetsCount:" + otherTargetsCount);
+                        // 设置MRT为渲染目标
                         if (!IsRenderPassEnabled(renderPass) || !cameraData.isRenderPassSupportedCamera)
                             SetRenderTarget(cmd, nonCameraAttachments, m_CameraDepthTarget, ClearFlag.Color, renderPass.clearColor);
                     }
@@ -1190,6 +1206,7 @@ namespace UnityEngine.Rendering.Universal
                 // When render pass doesn't call ConfigureTarget we assume it's expected to render to camera target
                 // which might be backbuffer or the framebuffer render textures.
 
+                // 如果render pass不覆盖相机渲染目标，render pass的渲染目标就是当前的相机渲染目标
                 if (!renderPass.overrideCameraTarget)
                 {
                     // Default render pass attachment for passes before main rendering is current active
@@ -1205,6 +1222,7 @@ namespace UnityEngine.Rendering.Universal
                 ClearFlag finalClearFlag = ClearFlag.None;
                 Color finalClearColor;
 
+                // 设置渲染目标(color & depth)的清理格式
                 if (passColorAttachment == m_CameraColorTarget && (m_FirstTimeCameraColorTargetIsBound))
                 {
                     m_FirstTimeCameraColorTargetIsBound = false; // register that we did clear the camera target the first time it was bound

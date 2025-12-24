@@ -33,6 +33,30 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   components:
   - {fileID: 5448626041829629993}
+  - {fileID: 8596410783943179145}
+  - {fileID: 1222260677750977645}
+--- !u!114 &1222260677750977645
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 37a90ab1ff5613049a4c5c1f5726b6f7, type: 3}
+  m_Name: TAACustom
+  m_EditorClassIdentifier: 
+  active: 1
+  quality:
+    m_OverrideState: 1
+    m_Value: 2
+  spread:
+    m_OverrideState: 1
+    m_Value: 0.605
+  feedback:
+    m_OverrideState: 1
+    m_Value: 1
 --- !u!114 &5448626041829629993
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -45,7 +69,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe2a8b7502f0c714aae794636e00e3eb, type: 3}
   m_Name: FXAAComponent
   m_EditorClassIdentifier: 
-  active: 1
+  active: 0
   Enable:
     m_OverrideState: 1
     m_Value: 0
@@ -55,3 +79,25 @@ MonoBehaviour:
   Quality:
     m_OverrideState: 1
     m_Value: 2
+--- !u!114 &8596410783943179145
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6de40c3d47391a4e89d129fbf4136c1, type: 3}
+  m_Name: TemporalAntiAliasing
+  m_EditorClassIdentifier: 
+  active: 0
+  quality:
+    m_OverrideState: 1
+    m_Value: 2
+  spread:
+    m_OverrideState: 1
+    m_Value: 0.621
+  feedback:
+    m_OverrideState: 1
+    m_Value: 0.661

@@ -4,6 +4,8 @@ Shader "Hidden/Universal Render Pipeline/Scaling Setup"
         #pragma multi_compile_local_fragment _ _FXAA
         #pragma multi_compile_vertex _ _USE_DRAW_PROCEDURAL
         #pragma multi_compile_local_fragment _ _GAMMA_20  // 颜色空间转换,FSR需要
+        // gaussf
+        #pragma multi_compile_local_fragment _ _GAUSSF_RGB _GAUSSF_YUV
 
         #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -11,6 +13,22 @@ Shader "Hidden/Universal Render Pipeline/Scaling Setup"
 
         TEXTURE2D_X(_SourceTex);
         float4 _SourceSize;
+
+        // --------------------Gaussf start--------------------
+        half3 RGB2YUV(half3 rgb)
+        {
+            const half3 rgb2Y = half3(+0.299, +0.587, +0.114);
+            const half3 rgb2U = half3(-0.167, -0.331, +0.500);
+            const half3 rgb2V = half3(+0.500, -0.418, -0.081);
+
+            half3 yuv;
+            yuv.r = dot(rgb2Y, rgb) + 0.000;
+            yuv.g = dot(rgb2U, rgb) + 0.500;
+            yuv.b = dot(rgb2V, rgb) + 0.500;
+
+            return yuv;
+        }
+        // --------------------Gaussf end--------------------
 
         half4 Frag(Varyings input) : SV_Target
         {
@@ -32,6 +50,13 @@ Shader "Hidden/Universal Render Pipeline/Scaling Setup"
             color = LinearToGamma20(color);
 #endif
 
+            // -------------- GAUSSF -----------------------
+#if _GAUSSF_RGB
+            color = LinearToGamma20(color);
+#endif
+#if _GAUSSF_YUV
+            color = RGB2YUV(color);
+#endif
             return half4(color, 1.0);
         }
 

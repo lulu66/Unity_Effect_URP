@@ -51,6 +51,11 @@ namespace UnityEngine.Experimental.Rendering
         }
 
 #if UNITY_EDITOR
+        /// <summary>
+        /// 获取ProbeVolumeData资源所在的文件夹名称
+        /// </summary>
+        /// <param name="scene"></param>
+        /// <returns></returns>
         internal static string GetFileName(Scene scene)
         {
             string assetName = "ProbeVolumeData";
@@ -71,6 +76,11 @@ namespace UnityEngine.Experimental.Rendering
             return assetFileName;
         }
 
+        /// <summary>
+        /// 创建ProbeVolumeData资源
+        /// </summary>
+        /// <param name="scene"></param>
+        /// <returns></returns>
         public static ProbeVolumeAsset CreateAsset(Scene scene)
         {
             ProbeVolumeAsset asset = ScriptableObject.CreateInstance<ProbeVolumeAsset>();
@@ -83,6 +93,7 @@ namespace UnityEngine.Experimental.Rendering
             return asset;
         }
 
+        // 获取配置文件中的配置数据
         internal void StoreProfileData(ProbeReferenceVolumeProfile profile)
         {
             cellSizeInBricks = profile.cellSizeInBricks;

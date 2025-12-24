@@ -13,12 +13,15 @@ using UnityEngine.Rendering;
 
 namespace UnityEngine.Experimental.Rendering
 {
+    // probe volume的容器格子，每个bakingcell负责管理自己格子里的probes
+    // 优化
     struct BakingCell
     {
         public ProbeReferenceVolume.Cell cell;
         public int[] probeIndices;
     }
 
+    // probe volume烘焙过程中的任务批次管理器，负责将大量探头烘焙任何分批处理，避免内存爆炸和性能卡顿;
     class BakingBatch
     {
         public int index;
@@ -50,8 +53,11 @@ namespace UnityEngine.Experimental.Rendering
     partial class ProbeGIBaking
     {
         static bool m_IsInit = false;
+        // probe volume的烘焙任务管理器
         static BakingBatch m_BakingBatch;
+        // probe volume相关的配置文件(控制品质、质量标准)
         static ProbeReferenceVolumeProfile m_BakingProfile = null;
+        // probe volume烘焙过程中的参数配置(控制如何烘焙，而非结果质量)
         static ProbeVolumeBakingProcessSettings m_BakingSettings;
 
         static int m_BakingBatchIndex = 0;
@@ -128,6 +134,7 @@ namespace UnityEngine.Experimental.Rendering
 
             hasFoundBounds = false;
 
+            // 获取probes的包围盒
             foreach (var sceneGUID in activeSet.sceneGUIDs)
             {
                 bool hasProbeVolumes = false;
@@ -158,12 +165,17 @@ namespace UnityEngine.Experimental.Rendering
             }
         }
 
+        /// <summary>
+        /// 设置全局的场景烘焙质量和烘焙过程参数文件配置
+        /// </summary>
+        /// <param name="perSceneData"></param>
         static void SetBakingContext(ProbeVolumePerSceneData[] perSceneData)
         {
             // We need to make sure all scenes we are baking have the same profile. The same should be done for the baking settings, but we check only profile.
             // TODO: This should be ensured by the controlling panel, until we have that we need to assert.
 
             // To check what are  the scenes that have probe volume enabled we checks the ProbeVolumePerSceneData. We are guaranteed to have only one per scene.
+            // 对于每个场景，拿到场景Probe烘焙质量设置文件
             for (int i=0; i<perSceneData.Length; ++i)
             {
                 var data = perSceneData[i];
@@ -171,6 +183,7 @@ namespace UnityEngine.Experimental.Rendering
                 var profile = ProbeReferenceVolume.instance.sceneData.GetProfileForScene(scene);
                 Debug.Assert(profile != null, "Trying to bake a scene without a profile properly set.");
 
+                // 设置全局的Probe烘焙质量变量和烘焙参数变量
                 if (i == 0)
                 {
                     m_BakingProfile = profile;
@@ -191,15 +204,18 @@ namespace UnityEngine.Experimental.Rendering
             var pvList = GameObject.FindObjectsOfType<ProbeVolume>();
             if (pvList.Length == 0) return; // We have no probe volumes.
 
+            // 计算场景probe volumes的包围盒
             FindWorldBounds(out bool hasFoundInvalidSetup);
             var perSceneDataList = GameObject.FindObjectsOfType<ProbeVolumePerSceneData>();
             if (perSceneDataList.Length == 0 || hasFoundInvalidSetup) return;
 
+            // 设置烘焙的品质和烘焙参数
             SetBakingContext(perSceneDataList);
 
+            // 如果使用了虚拟间隔设置，则添加mesh collider
             if (m_BakingSettings.virtualOffsetSettings.useVirtualOffset)
                 AddOccluders();
-
+            // 划分和放置probe的数据，加入到unity的光照系统参与烘焙
             RunPlacement();
         }
 
@@ -273,10 +289,12 @@ namespace UnityEngine.Experimental.Rendering
             var perSceneDataList = GameObject.FindObjectsOfType<ProbeVolumePerSceneData>();
             if (perSceneDataList.Length == 0) return;
 
+            // 设置烘焙的质量和烘焙过程参数到全局变量中
             SetBakingContext(perSceneDataList);
 
             foreach (var sceneData in perSceneDataList)
             {
+                // 拿到sceneData中的probe volume asset中的cells和它的路径，建立cell的索引和路径的索引字典
                 var asset = sceneData.GetCurrentStateAsset();
                 string assetPath = asset.GetSerializedFullPath();
                 foreach (var cell in asset.cells)
@@ -291,13 +309,15 @@ namespace UnityEngine.Experimental.Rendering
                 //// We need to queue the asset loading to make sure all is fine when calling refresh.
                 //sceneData.QueueAssetLoading();
             }
-
+            // 拿到烘焙质量设置中的dilation设置
             var dilationSettings = m_BakingSettings.dilationSettings;
 
+            // 如果dilation设置开启且dilation的距离大于0
             if (dilationSettings.enableDilation && dilationSettings.dilationDistance > 0.0f)
             {
                 // Force maximum sh bands to perform dilation, we need to store what sh bands was selected from the settings as we need to restore
                 // post dilation.
+                // 设置烘焙球谐的级别为L2
                 var prevSHBands = ProbeReferenceVolume.instance.shBands;
                 ProbeReferenceVolume.instance.ForceSHBand(ProbeVolumeSHBands.SphericalHarmonicsL2);
 
@@ -555,6 +575,7 @@ namespace UnityEngine.Experimental.Rendering
             PerformDilation();
         }
 
+        // 烘焙数据清理
         static void OnLightingDataCleared()
         {
             Clear();
@@ -606,9 +627,11 @@ namespace UnityEngine.Experimental.Rendering
             AdditionalGIBakeRequestsManager.instance.AddRequestsToLightmapper();
             UnityEditor.Lightmapping.bakeCompleted += OnBakeCompletedCleanup;
 
+            // 清理baking batch数组
             ClearBakingBatch();
 
             // Subdivide the scene and place the bricks
+            // 场景probe volumes拆分为cells
             var ctx = PrepareProbeSubdivisionContext();
             var result = BakeBricks(ctx);
 
@@ -618,6 +641,10 @@ namespace UnityEngine.Experimental.Rendering
             ApplySubdivisionResults(result, newRefToWS);
         }
 
+        /// <summary>
+        /// 将场景的probe volume\对gi有贡献的renderer都用volume包围，并将probe volume拆分为cell，记录cell的位置和包围盒
+        /// </summary>
+        /// <returns></returns>
         public static ProbeSubdivisionContext PrepareProbeSubdivisionContext()
         {
             ProbeSubdivisionContext ctx = new ProbeSubdivisionContext();
@@ -650,6 +677,7 @@ namespace UnityEngine.Experimental.Rendering
                     var scenesInCell = new HashSet<Scene>();
 
                     // Calculate overlaping probe volumes to avoid unnecessary work
+                    // 找到与当前cell相交的probe volume，添加到相交probe volume列表，并添加对应的场景
                     var overlappingProbeVolumes = new List<(ProbeVolume component, ProbeReferenceVolume.Volume volume)>();
                     foreach (var probeVolume in ctx.probeVolumes)
                     {
@@ -667,6 +695,7 @@ namespace UnityEngine.Experimental.Rendering
                         var go = renderer.component.gameObject;
                         int rendererLayerMask = 1 << go.layer;
 
+                        // 找到与当前cell和与cell相交的probe volume都相交的renderer的volume，加入有效renderers列表，相应场景加入scenesInCell列表
                         foreach (var probeVolume in overlappingProbeVolumes)
                         {
                             if (ProbeVolumePositioning.OBBIntersect(renderer.volume, probeVolume.volume)
@@ -686,6 +715,7 @@ namespace UnityEngine.Experimental.Rendering
                     if (validRenderers.Count == 0 && overlappingProbeVolumes.Count == 0)
                         continue;
 
+                    // 生成brick列表
                     var bricks = ProbePlacement.SubdivideCell(cell.volume, ctx, gpuResources, validRenderers, overlappingProbeVolumes);
 
                     result.cellPositions.Add(cell.position);

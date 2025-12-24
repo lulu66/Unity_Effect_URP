@@ -216,6 +216,7 @@ namespace UnityEngine.Rendering.Universal
         /// Set <c>base.profilingSampler</c> from the sub-class constructor to set a profiling name for a custom <c>ScriptableRenderPass</c>.
         /// </summary>
         protected internal ProfilingSampler profilingSampler { get; set; }
+        // 是否要用自定义的rt替换cameraTarget
         internal bool overrideCameraTarget { get; set; }
         internal bool isBlitRenderPass { get; set; }
 
@@ -234,6 +235,7 @@ namespace UnityEngine.Rendering.Universal
         internal NativeArray<int> m_ColorAttachmentIndices;
         internal NativeArray<int> m_InputAttachmentIndices;
 
+        // render pass的渲染目标格式数组
         internal GraphicsFormat[] renderTargetFormat { get; set; }
 
         // renderpass的颜色附着（支持MRT）

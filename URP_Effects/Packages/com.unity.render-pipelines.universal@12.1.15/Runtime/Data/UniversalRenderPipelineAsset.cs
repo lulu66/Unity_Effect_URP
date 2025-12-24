@@ -150,7 +150,9 @@ namespace UnityEngine.Rendering.Universal
         [InspectorName("Nearest-Neighbor")]
         Point,
         [InspectorName("FidelityFX Super Resolution 1.0")]
-        FSR
+        FSR,
+        [InspectorName("Gradient Adaptive Up Sampling and Signal-Filtering")]
+        GAUSSF
     }
 
     [ExcludeFromPreset]
@@ -213,6 +215,10 @@ namespace UnityEngine.Rendering.Universal
         [SerializeField] UpscalingFilterSelection m_UpscalingFilter = UpscalingFilterSelection.Auto;
         [SerializeField] bool m_FsrOverrideSharpness = false;
         [SerializeField] float m_FsrSharpness = FSRUtils.kDefaultSharpnessLinear;
+        // ------------------GAUSSF START--------------------
+        [SerializeField] float m_GaussfSharpness = GAUSSFUtils.kDefaultSharpnessLinear;
+        [SerializeField] int m_GaussfQualityLevel = 0;
+        // ------------------GAUSSF END----------------------
         // TODO: Shader Quality Tiers
 
         // Main directional light Settings
@@ -399,6 +405,7 @@ namespace UnityEngine.Rendering.Universal
                 default:
                 {
                     var rendererData = CreateInstance<UniversalRendererData>();
+                    // 从postprocessData配置中获取数据
                     rendererData.postProcessData = PostProcessData.GetDefaultPostProcessData();
                     return rendererData;
                 }
@@ -784,6 +791,20 @@ namespace UnityEngine.Rendering.Universal
             get { return m_FsrSharpness; }
             set { m_FsrSharpness = value; }
         }
+
+        // -------------------GAUSSF START -------------------
+        public float gaussfSharpness
+        {
+            get { return m_GaussfSharpness; }
+            set { m_GaussfSharpness = value; }
+        }
+
+        public int gaussfQualityLevel
+        {
+            get { return m_GaussfQualityLevel; }
+            set { m_GaussfQualityLevel = value; }
+        }
+        // ---------------------GAUSSF END---------------------
 
         public LightRenderingMode mainLightRenderingMode
         {

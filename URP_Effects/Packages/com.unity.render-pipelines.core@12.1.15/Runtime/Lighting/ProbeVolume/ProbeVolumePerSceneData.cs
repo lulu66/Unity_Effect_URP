@@ -17,6 +17,7 @@ namespace UnityEngine.Experimental.Rendering
         Invalid = 999
     }
 
+    // 每个场景的probe volume数据容器，专门存储和管理单个场景的烘焙光照探头数据
     [ExecuteAlways]
     [AddComponentMenu("")] // Hide.
     internal class ProbeVolumePerSceneData : MonoBehaviour, ISerializationCallbackReceiver
@@ -38,6 +39,7 @@ namespace UnityEngine.Experimental.Rendering
 
         /// <summary>
         /// OnAfterDeserialize implementation.
+        /// 将列表的数据转化为asset字典
         /// </summary>
         public void OnAfterDeserialize()
         {
@@ -52,6 +54,7 @@ namespace UnityEngine.Experimental.Rendering
 
         /// <summary>
         /// OnBeforeSerialize implementation.
+        /// 将asset字典的数据转换为列表，以便于之后进行序列化
         /// </summary>
         public void OnBeforeSerialize()
         {
@@ -72,6 +75,9 @@ namespace UnityEngine.Experimental.Rendering
             assets[state] = asset;
         }
 
+        /// <summary>
+        /// 清空资源字典
+        /// </summary>
         internal void InvalidateAllAssets()
         {
             foreach (var asset in assets.Values)
@@ -82,20 +88,28 @@ namespace UnityEngine.Experimental.Rendering
 
             assets.Clear();
         }
-
+        /// <summary>
+        /// 返回当前状态的资源
+        /// </summary>
+        /// <returns></returns>
         internal ProbeVolumeAsset GetCurrentStateAsset()
         {
             if (assets.ContainsKey(m_CurrentState)) return assets[m_CurrentState];
             else return null;
         }
 
+        /// <summary>
+        /// 即将加载的probe volume资源加入队列
+        /// </summary>
         internal void QueueAssetLoading()
         {
             var refVol = ProbeReferenceVolume.instance;
             if (assets.ContainsKey(m_CurrentState) && assets[m_CurrentState] != null)
             {
+                // 加载probe volume assets的信息初始化
                 refVol.AddPendingAssetLoading(assets[m_CurrentState]);
 #if UNITY_EDITOR
+                // 更新dilation的有效阈值
                 if (refVol.sceneData != null)
                 {
                     refVol.dilationValidtyThreshold = refVol.sceneData.GetBakeSettingsForScene(gameObject.scene).dilationSettings.dilationValidityThreshold;
@@ -105,6 +119,9 @@ namespace UnityEngine.Experimental.Rendering
             }
         }
 
+        /// <summary>
+        /// 即将卸载的probe volume资源加入队列
+        /// </summary>
         internal void QueueAssetRemoval()
         {
             if (assets.ContainsKey(m_CurrentState) && assets[m_CurrentState] != null)

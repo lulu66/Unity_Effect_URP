@@ -62,6 +62,7 @@ namespace UnityEngine.Experimental.Rendering
 #if UNITY_EDITOR
         /// <summary>
         /// Returns the extents of the volume.
+        /// volume的尺寸
         /// </summary>
         /// <returns>The extents of the ProbeVolume.</returns>
         public Vector3 GetExtents()
@@ -69,12 +70,17 @@ namespace UnityEngine.Experimental.Rendering
             return size;
         }
 
+        /// <summary>
+        /// 给场景中所有contributeGI的物体扩充全局probe volume包围盒,并更新包围盒大小
+        /// </summary>
+        /// <param name="scene"></param>        
         internal void UpdateGlobalVolume(Scene scene)
         {
             if (gameObject.scene != scene) return;
 
             Bounds bounds = new Bounds();
             bool foundABound = false;
+            // 返回场景物体是否包含contributeGI的static flag
             bool ContributesToGI(Renderer renderer)
             {
                 var flags = GameObjectUtility.GetStaticEditorFlags(renderer.gameObject) & StaticEditorFlags.ContributeGI;
