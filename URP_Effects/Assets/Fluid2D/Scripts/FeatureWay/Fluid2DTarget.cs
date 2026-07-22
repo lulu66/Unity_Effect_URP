@@ -8,11 +8,11 @@ namespace Fluid2D
     {
         public Material SplatMat;
         public Transform[] FootTransforms;
-        // ½»»¥ÎïµÄ´óÐ¡Ëõ·Å
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä´ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½
         [Range(0.01f, 0.1f)]
         public float Scale = 0.05f;
 
-        [Header("ÏßËÙ¶ÈÏà¹Ø")]
+        [Header("ï¿½ï¿½ï¿½Ù¶ï¿½ï¿½ï¿½ï¿½")]
         [Range(0f, 20f)]
         public float MaxRelativeVelocity = 10f;
         public Vector3 VelocityScale = Vector3.one;
@@ -20,23 +20,23 @@ namespace Fluid2D
         public float VelocityWeight = 1f;
         public Texture2D velocityTexture;
 
-        [Header("Ðý×ªËÙ¶ÈÏà¹Ø")]
+        [Header("ï¿½ï¿½×ªï¿½Ù¶ï¿½ï¿½ï¿½ï¿½")]
         [Range(0f, 20f)]
         public float MaxRelativeAngularVelocity = 10f;
         [Range(0f, 20f)]
         public float AngularVelocityScale = 1;
 
-        [Header("ÍâÁ¦")]
+        [Header("ï¿½ï¿½ï¿½ï¿½")]
         public Vector3 Force;
         public float Torque;
 
-        [Header("ÃÜ¶ÈÏà¹Ø")]
+        [Header("ï¿½Ü¶ï¿½ï¿½ï¿½ï¿½")]
         [Range(0f, 1f)]
         public float DensityWeight = 1f;
         public Texture2D DensityTexture;
         public Color SplatWeight;
 
-        //[Header("ÔëÉùÏà¹Ø")]
+        //[Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
         //public Texture2D NoiseTexture;
         //[Range(0f, 1f)]
         //public float VelocityNoise = 0;
@@ -72,7 +72,7 @@ namespace Fluid2D
         private Vector4 tempParams = Vector4.zero;
 
         public List<Material> SplatInstanceMats;
-        // ½»»¥ÎïµÄÎ»ÖÃºÍ´óÐ¡
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ÃºÍ´ï¿½Ð¡
         public List<Vector4> SplatPositionSizes
         {
             get
@@ -96,7 +96,7 @@ namespace Fluid2D
                 return relativeAngularVels;
             }
         }
-        // ÏßËÙ¶È
+        // ï¿½ï¿½ï¿½Ù¶ï¿½
         public void CalVelocity()
         {
             for (int i = 0; i < velocities.Count; i++)
@@ -105,7 +105,7 @@ namespace Fluid2D
             }
         }
 
-        // ½ÇËÙ¶È
+        // ï¿½ï¿½ï¿½Ù¶ï¿½
         public void CalAngularVelocity()
         {
             for (int i = 0; i < angularVelocities.Count; i++)
@@ -211,7 +211,7 @@ namespace Fluid2D
         {
             if (SplatMat == null) return;
 
-            // ¼ÆËãuv¿Õ¼äµÄÏßËÙ¶È
+            // ï¿½ï¿½ï¿½ï¿½uvï¿½Õ¼ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶ï¿½
             CalVelocity();
             WorldVectorToUVSpace(fluidPlaneTransform, velocities, linearVelsInUV, rect);
 
@@ -232,7 +232,7 @@ namespace Fluid2D
 
             }
 
-            // ¼ÆËãuv¿Õ¼äµÄ½ÇËÙ¶È
+            // ï¿½ï¿½ï¿½ï¿½uvï¿½Õ¼ï¿½Ä½ï¿½ï¿½Ù¶ï¿½
             CalAngularVelocity();
             WorldVectorToUVSpace(fluidPlaneTransform, angularVelocities, angularVelsInUV, rect);
             for (int i = 0; i < angularVelsInUV.Count; i++)
@@ -258,7 +258,7 @@ namespace Fluid2D
             splatWeight.z = SplatWeight.b;
             splatWeight.w = SplatWeight.a * DensityWeight;
 
-            // ¸üÐÂ½»»¥ÎïÍ¶Ó°µ½Á÷ÌåÆ½ÃæµÄpositionºÍsize
+            // ï¿½ï¿½ï¿½Â½ï¿½ï¿½ï¿½ï¿½ï¿½Í¶Ó°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½positionï¿½ï¿½size
             for (int i = 0; i < FootTransforms.Length; i++)
             {
                 var lossyScale = FootTransforms[i].lossyScale;
@@ -268,21 +268,21 @@ namespace Fluid2D
                 PositionAndSize[i] = ProjectTarget(fluidPlaneTransform, targetPos, projectSize);
             }
 
-            // ¸üÐÂ½»»¥ÎïµÄrotation£¨ÂÔ£¬ÎÞ×ÔÐý×ª£©
+            // ï¿½ï¿½ï¿½Â½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½rotationï¿½ï¿½ï¿½Ô£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½
 
-            // ¸üÐÂÎ»ÒÆºÍÐý×ª
+            // ï¿½ï¿½ï¿½ï¿½Î»ï¿½Æºï¿½ï¿½ï¿½×ª
             for (int i = 0; i < FootTransforms.Length; i++)
             {
                 oldPosition[i] = FootTransforms[i].position;
                 oldRotation[i] = FootTransforms[i].rotation;
             }
 
-            // ÐèÒª´«µÝµÄ¹«¹²²ÎÊý
+            // ï¿½ï¿½Òªï¿½ï¿½ï¿½ÝµÄ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             //SplatMat.SetTexture("_Noise", NoiseTexture);
             SplatMat.SetVector("_SplatWeight", splatWeight);
-            //SplatMat.SetVector("_DensityNoiseParams", densityNoiseParam); // ÃÜ¶ÈÍ¼µÄtillingOffset
+            //SplatMat.SetVector("_DensityNoiseParams", densityNoiseParam); // ï¿½Ü¶ï¿½Í¼ï¿½ï¿½tillingOffset
             //SplatMat.SetVector("_VelocityNoiseParams", velocityNoiseParam);
-            SplatMat.SetTexture("_Velocity", velocityTexture);      // ¶îÍâµÄËÙ¶ÈÍ¼
+            SplatMat.SetTexture("_Velocity", velocityTexture);      // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶ï¿½Í¼
         }
 
 
@@ -295,6 +295,7 @@ namespace Fluid2D
                 if (fluidPlaneSize.x <= 0.001 || fluidPlaneSize.y <= 0.001)
                 {
                     targets[i] = Vector3.zero;
+                    continue;
                 }
 
                 var v = fluidPlaneTransform.InverseTransformVector(vector[i]);
@@ -314,16 +315,16 @@ namespace Fluid2D
         private Vector4 ProjectTarget(Transform fluidPlaneTransform, Vector3 targetPos, float projectSize)
         {
 
-            // Í¶Ó°ÍâÎïµÄÎ»ÖÃµ½Á÷ÌåÆ½ÃæÉÏ£ºÔ­ÔòÉÏÒª½«ÍâÎïµÄÎ»ÖÃÍ¨¹ýÉäÏß¼ì²âÍ¶Ó°µÄÁ÷ÌåÆ½ÃæÉÏ£¬µ«ÊÇÕâÀï×öÒ»¸ö¼ò»¯£¬ÒòÎªÆ½ÃæÊÇË®Æ½µÄ£¬ÄÇÃ´ÍâÎïÔÚÁ÷ÌåÆ½ÃæµÄÍ¶Ó°ÆäÊµ¿ÉÒÔ¼òµ¥µÄ½«y=plane.y;
+            // Í¶Ó°ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ãµï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½Ï£ï¿½Ô­ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ß¼ï¿½ï¿½Í¶Ó°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½Ï£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ò»¯£ï¿½ï¿½ï¿½ÎªÆ½ï¿½ï¿½ï¿½ï¿½Ë®Æ½ï¿½Ä£ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½Í¶Ó°ï¿½ï¿½Êµï¿½ï¿½ï¿½Ô¼òµ¥µÄ½ï¿½y=plane.y;
             var targetPoint = targetPos;
             targetPoint.y = fluidPlaneTransform.position.y;
 
-            // ½«ÍâÎïÎ»ÖÃ×ª»»µ½Á÷ÌåÆ½ÃæµÄ¾Ö²¿×ø±êÏµµ±ÖÐ
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½Ä¾Ö²ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ï¿½
             //var localTargetPos = fluidPlaneTransform.InverseTransformPoint(targetPoint) / (Vector2)fluidPlaneSize;
             var localTargetPos = fluidPlaneTransform.InverseTransformPoint(targetPoint);
 
-            // ÕâÀïÔ­±¾ÊÇ´´½¨ÁíÍâÒ»Ìõ´ÓÁ÷ÌåÆ½Ãæµ×ÏÂµ½Ä¿±êÎ»ÖÃÓÒ²àµÄÒ»ÌõÉäÏß£¬È»ºóÍ¨¹ýÓëÆ½Ãæ½»µã£¬ÇóµÃÒ»¸öÏà½»Î»ÖÃ£¬²¢×ª»»µ½Á÷ÌåÆ½Ãæ¾Ö²¿×ø±êÏµÖÐ£¬ºÍÄ¿±êÎ»ÖÃµÄÍ¶Ó°Î»ÖÃ¼ÆËãÒ»¸ö¾àÀëÀ´×÷ÎªÒ»¸öºÏÊÊµÄÍ¶Ó°´óÐ¡µÄËõ·ÅÖµ
-            // ÕâÀï¼ò»¯µô£¬Ö±½ÓÍ¨¹ý²ÎÊýµ÷½Úscale¼´¿É
+            // ï¿½ï¿½ï¿½ï¿½Ô­ï¿½ï¿½ï¿½Ç´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½ï¿½Âµï¿½Ä¿ï¿½ï¿½Î»ï¿½ï¿½ï¿½Ò²ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ß£ï¿½È»ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½Æ½ï¿½æ½»ï¿½ã£¬ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½à½»Î»ï¿½Ã£ï¿½ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½Ö²ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½Ð£ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½Î»ï¿½Ãµï¿½Í¶Ó°Î»ï¿½Ã¼ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÎªÒ»ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½Í¶Ó°ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ
+            // ï¿½ï¿½ï¿½ï¿½ò»¯µï¿½ï¿½ï¿½Ö±ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½scaleï¿½ï¿½ï¿½ï¿½
 
             projectionTarget.x = localTargetPos.x;
             projectionTarget.y = localTargetPos.y;

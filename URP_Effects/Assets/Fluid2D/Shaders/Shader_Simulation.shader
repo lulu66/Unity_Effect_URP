@@ -59,7 +59,7 @@ Shader "Shader/Simulation"
 			HLSLPROGRAM
 
 			CBUFFER_START(UnityPerMaterial)
-				int4 _WrapMode;
+				half4 _WrapMode;
 				half _DeltaTime;
 				half4 _MainTex_TexelSize;
 				half4 _Velocity_TexelSize;

@@ -11,22 +11,22 @@ namespace Fluid2D
 	public class Settings
 	{
 		public int Resolution = 256;
-		[Header("Á÷ÌåÎïÀí²ÎÊý")]
-		public Vector4 Dissipation = Vector4.zero;   // ºÄÉ¢(Á÷Ìå¶¯ÄÜÒòÕ³ÐÔ×÷ÓÃ²»¿ÉÄæµØ×ª»»ÎªÄÚÄÜµÄ¹ý³Ì)
+		[Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½")]
+		public Vector4 Dissipation = Vector4.zero;   // ï¿½ï¿½É¢(ï¿½ï¿½ï¿½å¶¯ï¿½ï¿½ï¿½ï¿½Õ³ï¿½ï¿½ï¿½ï¿½ï¿½Ã²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½Îªï¿½ï¿½ï¿½ÜµÄ¹ï¿½ï¿½ï¿½)
 
 		//[Range(0f, 1f)]
-		//public float Adhesion;          // ¸½×ÅÁ¦£¨²»ÊÇÁ÷Ìå·½³ÌµÄ±ê×¼Á¦Ïî£¬ÊÇÁ÷ÌåÓë¹ÌÌå±ß½çÖ®¼ä·Ö×Ó¼¶±ðµÄÎüÒýÁ¦£¬Ö÷ÒªÓ°Ïì±ß½çÌõ¼þµÄ¼ÆËã£©
+		//public float Adhesion;          // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å·½ï¿½ÌµÄ±ï¿½×¼ï¿½ï¿½ï¿½î£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß½ï¿½Ö®ï¿½ï¿½ï¿½ï¿½Ó¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÒªÓ°ï¿½ï¿½ß½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ã£©
 
 		[Range(0f, 1f)]
-		public float Pressure = 0.2f;          // Ñ¹Á¦
+		public float Pressure = 0.2f;          // Ñ¹ï¿½ï¿½
 
 		//[Range(0f, 1f)]
-		//public float Viscosity;         // Õ³¶È:¶ÔÀíÏëÁ÷ÌåÊÇ²»±ØÒªµÄ£¬ËäÈ»¶ÔÊÓ¾õÖÊ¸ÐÆð×Å±È½Ï´óµÄ×÷ÓÃ
+		//public float Viscosity;         // Õ³ï¿½ï¿½:ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç²ï¿½ï¿½ï¿½Òªï¿½Ä£ï¿½ï¿½ï¿½È»ï¿½ï¿½ï¿½Ó¾ï¿½ï¿½Ê¸ï¿½ï¿½ï¿½ï¿½Å±È½Ï´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-		//public Vector4 Boundary = new Vector4(0, 0, 1, 1);        // ±ß½ç
+		//public Vector4 Boundary = new Vector4(0, 0, 1, 1);        // ï¿½ß½ï¿½
 
 
-		public Vector2 EdgeFallOff = Vector2.zero;       // ±ß½çË¥¼õ
+		public Vector2 EdgeFallOff = Vector2.zero;       // ï¿½ß½ï¿½Ë¥ï¿½ï¿½
 
 		public Vector4 WarpMode = new Vector4(0,0,1,1);
 
@@ -60,6 +60,15 @@ namespace Fluid2D
 				fluid2dPass.renderPassEvent = RenderPassEvent.AfterRenderingSkybox;
 			}
 		}
+
+		protected override void Dispose(bool disposing)
+		{
+			if (disposing && fluid2dPass != null)
+			{
+				fluid2dPass.Release();
+				fluid2dPass = null;
+			}
+		}
 	}
 
 	public class Fluid2DPass : ScriptableRenderPass
@@ -81,7 +90,7 @@ namespace Fluid2D
 		{
 			this.settings = settings;
 
-			// 1. ´´½¨4¸ört£¬ÓÃÓÚ¸üÐÂÁ÷Ìå×´Ì¬
+			// 1. ï¿½ï¿½ï¿½ï¿½4ï¿½ï¿½rtï¿½ï¿½ï¿½ï¿½ï¿½Ú¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬
 			CreateFluidRT();
 		}
 
@@ -92,10 +101,10 @@ namespace Fluid2D
 			var cmd = CommandBufferPool.Get("Fluid 2D Simulation");
 			cmd.Clear();
 
-			// A. ¸üÐÂÁ÷ÌåÐ§¹ûÆ½ÃæµÄrt
+			// A. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð§ï¿½ï¿½Æ½ï¿½ï¿½ï¿½rt
 			Fluid2DManager.Instance.UpdateFluidPlaneMaterial(velocityA, stateA);
 
-			// B. ¸üÐÂÁ÷Ìå½»»¥
+			// B. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å½»ï¿½ï¿½
 			positionAndSizes = Fluid2DManager.Instance.Target.SplatPositionSizes;
 			linearVels = Fluid2DManager.Instance.Target.SplatLinearVelocities;
 			angularVels = Fluid2DManager.Instance.Target.SplatAnularVelocities;
@@ -107,44 +116,44 @@ namespace Fluid2D
 			for (int i=0; i<positionAndSizes.Count; i++)
 			{
 				splatMats[i].SetVector("_SplatTransform", positionAndSizes[i]);
-				// ¸üÐÂ×´Ì¬
+				// ï¿½ï¿½ï¿½ï¿½×´Ì¬
 				cmd.Blit(densityTexture, stateA, splatMats[i], 0);
 
 				splatMats[i].SetVector("_LinearVelicoty", linearVels[i]);
 				splatMats[i].SetFloat("_AngularVelocity", angularVels[i]);
-				// ¸üÐÂËÙ¶È
+				// ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶ï¿½
 				cmd.Blit(densityTexture, velocityA, splatMats[i], 1);
 			}
 
-			// ¸üÐÂÁ÷ÌåÄ£Äâ
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½
 			var simulationMaterial = Fluid2DManager.Instance.FluidSimulationMaterial;
 			simulationMaterial.SetFloat("_Pressure", settings.Pressure);
 			simulationMaterial.SetVector("_WrapMode", settings.WarpMode);
 			simulationMaterial.SetVector("_Dissipation", settings.Dissipation);
 			simulationMaterial.SetVector("_EdgeFalloff", settings.EdgeFallOff);
 
-			// C. ¸üÐÂÆ½Á÷×´Ì¬
+			// C. ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½×´Ì¬
 			velocityA.filterMode = FilterMode.Point;
 			stateA.filterMode = FilterMode.Point;
 			simulationMaterial.SetFloat("_DeltaTime", Time.deltaTime);
 			simulationMaterial.SetTexture("_Velocity", velocityA);
 			cmd.Blit(stateA, stateB, simulationMaterial, 0);
 
-			// D. ¸üÐÂÆ½Á÷ËÙ¶È
+			// D. ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½Ù¶ï¿½
 			cmd.Blit(velocityA, velocityB, simulationMaterial, 1);
 
-			// E. ¸üÐÂÁ÷ÌåºÄÉ¢£¨¿¼ÂÇÁ÷ÌåµÄË¥¼õ£©
+			// E. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¥ï¿½ï¿½ï¿½ï¿½
 			cmd.Blit(stateB, stateA, simulationMaterial, 2);
 
-			// F.¸üÐÂÁ÷ÌåËÙ¶ÈµÄÉ¢¶È
+			// F.ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ù¶Èµï¿½É¢ï¿½ï¿½
 			cmd.Blit(velocityB, velocityA, simulationMaterial, 5);
 
-			// G. ¸üÐÂÁ÷ÌåÑ¹Á¦
+			// G. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¹ï¿½ï¿½
 			cmd.Blit(velocityA, velocityB, simulationMaterial, 6);
 			cmd.Blit(velocityB, velocityA, simulationMaterial, 6);
 			cmd.Blit(velocityA, velocityB);
 
-			// H. ¼ÆËãÁ÷ÌåÎÞÉ¢ËÙ¶È
+			// H. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¢ï¿½Ù¶ï¿½
 			cmd.Blit(velocityB, velocityA, simulationMaterial, 7);
 
 			velocityA.filterMode = FilterMode.Bilinear;

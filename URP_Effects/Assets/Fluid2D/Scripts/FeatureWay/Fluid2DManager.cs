@@ -1,34 +1,32 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Experimental.Rendering.Universal;
-using UnityEngine.Rendering.Universal;
 
 namespace Fluid2D
 {
     public class Fluid2DManager : MonoBehaviour
     {
-        // Á÷ÌåÄ£ÄâµÄ²ÄÖÊ
+        // ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½Ä²ï¿½ï¿½ï¿½
         public Material FluidSimulationMaterial;
-        // ²ÎÓëÁ÷Ìå½»»¥µÄtarget
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å½»ï¿½ï¿½ï¿½ï¿½target
         public Fluid2DTarget Target;
 
-        //// Á÷ÌåÄ£ÄâÐèÒªÓÃµ½µÄ²ÎÊý
-        //public Vector4 Dissipation = Vector4.zero;   // ºÄÉ¢(Á÷Ìå¶¯ÄÜÒòÕ³ÐÔ×÷ÓÃ²»¿ÉÄæµØ×ª»»ÎªÄÚÄÜµÄ¹ý³Ì)
+        //// ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½ï¿½ï¿½Òªï¿½Ãµï¿½ï¿½Ä²ï¿½ï¿½ï¿½
+        //public Vector4 Dissipation = Vector4.zero;   // ï¿½ï¿½É¢(ï¿½ï¿½ï¿½å¶¯ï¿½ï¿½ï¿½ï¿½Õ³ï¿½ï¿½ï¿½ï¿½ï¿½Ã²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½Îªï¿½ï¿½ï¿½ÜµÄ¹ï¿½ï¿½ï¿½)
 
         //[Range(0f,1f)]
-        //public float Adhesion;          // ¸½×ÅÁ¦£¨²»ÊÇÁ÷Ìå·½³ÌµÄ±ê×¼Á¦Ïî£¬ÊÇÁ÷ÌåÓë¹ÌÌå±ß½çÖ®¼ä·Ö×Ó¼¶±ðµÄÎüÒýÁ¦£¬Ö÷ÒªÓ°Ïì±ß½çÌõ¼þµÄ¼ÆËã£©
+        //public float Adhesion;          // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å·½ï¿½ÌµÄ±ï¿½×¼ï¿½ï¿½ï¿½î£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß½ï¿½Ö®ï¿½ï¿½ï¿½ï¿½Ó¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÒªÓ°ï¿½ï¿½ß½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ã£©
 
         //[Range(0f, 1f)]
-        //public float Pressure = 0.2f;          // Ñ¹Á¦
+        //public float Pressure = 0.2f;          // Ñ¹ï¿½ï¿½
 
         //[Range(0f, 1f)]
-        //public float Viscosity;         // Õ³¶È:¶ÔÀíÏëÁ÷ÌåÊÇ²»±ØÒªµÄ£¬ËäÈ»¶ÔÊÓ¾õÖÊ¸ÐÆð×Å±È½Ï´óµÄ×÷ÓÃ
+        //public float Viscosity;         // Õ³ï¿½ï¿½:ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç²ï¿½ï¿½ï¿½Òªï¿½Ä£ï¿½ï¿½ï¿½È»ï¿½ï¿½ï¿½Ó¾ï¿½ï¿½Ê¸ï¿½ï¿½ï¿½ï¿½Å±È½Ï´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-        //public Vector4 Boundary = new Vector4(0,0,1,1);        // ±ß½ç
+        //public Vector4 Boundary = new Vector4(0,0,1,1);        // ï¿½ß½ï¿½
 
         //[Range(0f, 1f)]
-        //public float EdgeFallOff;       // ±ß½çË¥¼õ
+        //public float EdgeFallOff;       // ï¿½ß½ï¿½Ë¥ï¿½ï¿½
 
 
         private MeshRenderer fluidMr;
@@ -36,8 +34,6 @@ namespace Fluid2D
         private MaterialPropertyBlock propertyBlock;
 
         private Vector4 rect;
-
-        private Fluid2DRenderFeature fluid2DFeature;
 
         private readonly int mainTexId = Shader.PropertyToID("_MainTex");
         private readonly int velocityId = Shader.PropertyToID("_Velocity");
@@ -61,13 +57,6 @@ namespace Fluid2D
             }
         }
 
-        private void OnDestroy()
-        {
-            if(fluid2DFeature != null)
-			{
-                fluid2DFeature.Fluid2dPass.Release();
-			}
-        }
         private void OnEnable()
         {
             if (fluidMr == null)
@@ -79,31 +68,6 @@ namespace Fluid2D
             propertyBlock = new MaterialPropertyBlock();
 
             rect = new Vector4(0, 0, 1, 1);
-
-            // ÕÒµ½fluid 2dµÄrender feature
-            var pipelineAsset = UniversalRenderPipeline.asset;
-            var field = typeof(UniversalRenderPipelineAsset).GetField("m_RendererDataList",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            UniversalRendererData rendererData = null;
-            if (field != null)
-            {
-                var rendererDataList = field.GetValue(pipelineAsset) as ScriptableRendererData[];
-                if (rendererDataList != null && rendererDataList.Length > 0)
-                {
-                    rendererData = rendererDataList[0] as UniversalRendererData;
-                }
-            }
-
-            if(rendererData != null)
-			{
-                foreach (var rf in rendererData.rendererFeatures)
-                {
-                    if(rf.name == "Fluid2DRenderFeature")
-					{
-                        fluid2DFeature = rf as Fluid2DRenderFeature;
-                    }
-                }
-            }
         }
 
         void LateUpdate()
@@ -114,7 +78,7 @@ namespace Fluid2D
                 return;
             }
 
-            // ¸üÐÂ½»»¥£¬´«µÝ½»»¥²ÎÊý
+            // ï¿½ï¿½ï¿½Â½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             if (Target != null)
             {
                 Target.Splat(transform, rect);
@@ -122,7 +86,7 @@ namespace Fluid2D
 
         }
 
-        // ¸üÐÂÁ÷ÌåÆ½ÃæµÄ²ÄÖÊ²ÎÊý
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½Ä²ï¿½ï¿½Ê²ï¿½ï¿½ï¿½
         public void UpdateFluidPlaneMaterial(RenderTexture velocityRT, RenderTexture stateRT)
         {
             if (fluidMr == null || fluidMr.sharedMaterial == null) return;
